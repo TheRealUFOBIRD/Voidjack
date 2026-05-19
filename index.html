@@ -9,28 +9,28 @@
   <body>
     <div class="app-shell">
       <header class="topbar">
-        <div>
-          <h1>VOIDJACK</h1>
-        </div>
+        <h1 class="brand-title">VOIDJACK</h1>
+      </header>
 
-        <div class="hud">
-          <div class="hud-pill">
+      <main class="table-wrap">
+        <aside class="hud table-hud" aria-label="Run Status">
+          <div class="hud-pill round">
             <span>Runde</span>
             <strong id="roundLabel">1</strong>
           </div>
-          <div class="hud-pill">
+          <div class="hud-pill hud-hidden-stat">
             <span>Deck</span>
             <strong id="deckCountLabel">0</strong>
           </div>
-          <div class="hud-pill player">
+          <div class="hud-pill player hud-hidden-stat">
             <span>Spieler HP</span>
             <strong id="playerHpLabel">0/0</strong>
           </div>
-          <div class="hud-pill player">
+          <div class="hud-pill player hud-hidden-stat">
             <span>Auswahl</span>
             <strong id="playerTotalLabel">0</strong>
           </div>
-          <div class="hud-pill dealer">
+          <div class="hud-pill dealer hud-hidden-stat">
             <span>Dealer HP</span>
             <strong id="dealerHpLabel">0/0</strong>
           </div>
@@ -40,17 +40,19 @@
             </span>
             <strong id="coinsLabel">0</strong>
           </div>
-        </div>
-      </header>
+          <div id="damageCountOverlay" class="damage-count-overlay" aria-hidden="true"></div>
+        </aside>
 
-      <main class="table-wrap">
         <section class="table-panel">
-          <div class="felt">
+          <div id="battleFelt" class="felt field-theme-normal">
             <section class="lane dealer-lane">
               <div class="lane-head">
                 <div>
-                  <p class="eyebrow">Dealer</p>
-                  <h2 id="dealerStatusLabel">Waiting</h2>
+                  <h2 id="dealerStatusLabel" class="dealer-status-hidden">Waiting</h2>
+                  <div class="field-theme-badge" aria-label="Aktuelles Feldthema">
+                    <span>Feld</span>
+                    <strong id="fieldThemeLabel">NORMAL</strong>
+                  </div>
                 </div>
                 <div class="damage-box dealer-damage-box">
                   <span class="damage-icon-label" aria-label="Nächster Angriff">
@@ -59,7 +61,10 @@
                   <strong id="dealerDamageLabel">0</strong>
                 </div>
                 <div class="hp-box">
-                  <span id="dealerHpText">0/0 HP</span>
+                  <div class="hp-box-head">
+                    <span class="hp-role">Dealer</span>
+                    <span id="dealerHpText">0/0 HP</span>
+                  </div>
                   <div class="hp-bar" aria-label="Dealer HP">
                     <div id="dealerHpFill" class="hp-fill"></div>
                   </div>
@@ -88,7 +93,6 @@
             <section class="lane player-lane">
               <div class="lane-head">
                 <div>
-                  <p class="eyebrow">Spieler</p>
                   <h2 id="playerStatusLabel">Bereit</h2>
                 </div>
                 <div class="damage-box player-damage-box">
@@ -98,19 +102,90 @@
                   <strong id="playerDamageLabel">0</strong>
                 </div>
                 <div class="hp-box player-hp-box">
-                  <span id="playerHpText">0/0 HP</span>
+                  <div class="hp-box-head">
+                    <span id="playerHpNameLabel" class="hp-role">Spieler</span>
+                    <span id="playerHpText">0/0 HP</span>
+                  </div>
                   <div class="hp-bar player-hp-bar" aria-label="Spieler HP">
                     <div id="playerHpFill" class="hp-fill player-hp-fill"></div>
                   </div>
                 </div>
               </div>
-              <div id="damageCountOverlay" class="damage-count-overlay" aria-hidden="true"></div>
+              <div class="inventory-slots" aria-label="Inventarplätze">
+                <div class="inventory-slot" aria-hidden="true"></div>
+                <div class="inventory-slot" aria-hidden="true"></div>
+                <div class="inventory-slot" aria-hidden="true"></div>
+              </div>
+              <div class="permanent-upgrade-slots" aria-label="Permanente Upgrade-Plätze">
+                <div class="permanent-upgrade-slot" aria-hidden="true"></div>
+                <div class="permanent-upgrade-slot" aria-hidden="true"></div>
+                <div class="permanent-upgrade-slot" aria-hidden="true"></div>
+              </div>
               <div id="playerCards" class="card-row"></div>
             </section>
           </div>
+          <div id="resultEffect" class="result-effect is-hidden" aria-hidden="true">
+            <div class="result-burst"></div>
+            <div id="resultEffectText" class="result-effect-text"></div>
+          </div>
+          <section id="shopPanel" class="shop-screen is-hidden">
+            <div class="shop-window">
+              <div class="shop-head">
+                <div>
+                  <h2>SHOP</h2>
+                </div>
+                <div class="shop-coins">
+                  <span class="coin-label" aria-label="Coins">
+                    <img src="assets/icons/gold-coin-icon-png-11552728459kod1gljkts.png" alt="">
+                  </span>
+                  <strong id="shopCoinsLabel">0</strong>
+                </div>
+              </div>
+
+              <p class="shop-copy">Kaufe Booster für dein Deck. Jeder Booster enthält 3 zufällige Karten aus seiner Art.</p>
+
+              <div id="shopOffers" class="shop-grid"></div>
+
+              <div id="boosterChoicePanel" class="booster-choice-panel is-hidden">
+                <div class="booster-choice-head">
+                  <p class="eyebrow">Booster geöffnet</p>
+                  <h3 id="boosterChoiceTitle">Wähle 1 Karte</h3>
+                </div>
+                <div id="boosterChoices" class="booster-choice-grid"></div>
+              </div>
+
+              <div class="button-row">
+                <button id="shopRerollButton" class="control-button reroll">Aktualisieren</button>
+                <button id="shopNextFightButton" class="control-button alt">WEITER</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="deckPanel" class="deck-screen is-hidden">
+            <div class="deck-window">
+              <div class="deck-head">
+                <div>
+                  <h2>Dein Deck</h2>
+                </div>
+                <button id="closeDeckButton" class="control-button close-deck-button" aria-label="Deck schließen">X</button>
+              </div>
+
+              <p id="deckSummary" class="deck-summary">0 Karten</p>
+              <div class="deck-content">
+                <div id="deckList" class="deck-list"></div>
+                <aside class="deck-hover-info" aria-label="Karteninfo im Deckfenster">
+                  <div id="deckPreviewSlot" class="deck-preview-slot"></div>
+                  <h3 id="deckPreviewTitle">Hover Card</h3>
+                  <p id="deckPreviewText" class="preview-text">Hover über eine Karte, um Details zu sehen.</p>
+                </aside>
+              </div>
+            </div>
+          </section>
         </section>
 
       <aside class="side-panel">
+          <button id="ingameMainMenuButton" class="deck-button main-menu-return-button">Hauptmenü</button>
+
           <section class="audio-panel" aria-label="Soundtrack Steuerung">
             <div class="audio-head">
               <div>
@@ -126,13 +201,13 @@
           </section>
 
           <section class="preview-panel">
-            <p class="eyebrow">Kartenansicht</p>
+            <p class="eyebrow preview-title-label">KARTEN DETAILS</p>
             <div id="previewSlot" class="preview-slot"></div>
             <h3 id="previewTitle">Hover Card</h3>
             <p id="previewText" class="preview-text">Hover über eine Karte, um Details zu sehen.</p>
           </section>
 
-          <section class="info-panel">
+          <section class="info-panel is-hidden" aria-hidden="true">
             <div class="info-row">
               <span>Deine Karten</span>
               <strong id="playerCardCountLabel">0</strong>
@@ -155,40 +230,6 @@
         </aside>
       </main>
 
-      <section id="shopPanel" class="shop-screen is-hidden">
-        <div class="shop-window">
-          <div class="shop-head">
-            <div>
-              <p class="eyebrow">Shop</p>
-              <h2>Zwischenraum</h2>
-            </div>
-            <div class="shop-coins">
-              <span class="coin-label" aria-label="Coins">
-                <img src="assets/icons/gold-coin-icon-png-11552728459kod1gljkts.png" alt="">
-              </span>
-              <strong id="shopCoinsLabel">0</strong>
-            </div>
-          </div>
-
-          <p class="shop-copy">Kaufe Booster für dein Deck. Jeder Booster enthält 3 zufällige Karten aus seiner Art.</p>
-
-          <div id="shopOffers" class="shop-grid"></div>
-
-          <div id="boosterChoicePanel" class="booster-choice-panel is-hidden">
-            <div class="booster-choice-head">
-              <p class="eyebrow">Booster geÃ¶ffnet</p>
-              <h3 id="boosterChoiceTitle">WÃ¤hle 1 Karte</h3>
-            </div>
-            <div id="boosterChoices" class="booster-choice-grid"></div>
-          </div>
-
-          <div class="button-row">
-            <button id="shopRerollButton" class="control-button reroll">Aktualisieren</button>
-            <button id="shopNextFightButton" class="control-button alt">Nächster Kampf</button>
-          </div>
-        </div>
-      </section>
-
       <section id="victoryPanel" class="result-screen victory-screen is-hidden">
         <div class="result-window">
           <h2>SIEG</h2>
@@ -205,36 +246,50 @@
           <p id="defeatText" class="result-copy">Du wurdest besiegt.</p>
           <div class="button-row">
             <button id="restartRunButton" class="control-button alt">Neu starten</button>
+            <button id="defeatMainMenuButton" class="control-button ghost">Hauptmenü</button>
           </div>
         </div>
       </section>
 
-      <section id="deckPanel" class="deck-screen is-hidden">
-        <div class="deck-window">
-          <div class="deck-head">
-            <div>
-              <h2>Dein Deck</h2>
-            </div>
-            <button id="closeDeckButton" class="control-button ghost">Schließen</button>
-          </div>
-
-          <p id="deckSummary" class="deck-summary">0 Karten</p>
-          <div class="deck-content">
-            <div id="deckList" class="deck-list"></div>
-            <aside class="deck-hover-info" aria-label="Karteninfo im Deckfenster">
-              <div id="deckPreviewSlot" class="deck-preview-slot"></div>
-              <h3 id="deckPreviewTitle">Hover Card</h3>
-              <p id="deckPreviewText" class="preview-text">Hover über eine Karte, um Details zu sehen.</p>
-            </aside>
-          </div>
-        </div>
-      </section>
-
-      <div id="resultEffect" class="result-effect is-hidden" aria-hidden="true">
-        <div class="result-burst"></div>
-        <div id="resultEffectText" class="result-effect-text"></div>
-      </div>
     </div>
+
+    <section id="mainMenu" class="main-menu-screen" aria-label="Hauptmenü">
+      <div class="main-menu-window">
+        <h1 class="brand-title menu-brand-title">VOIDJACK</h1>
+        <p id="activeProfileLabel" class="active-profile-label">Kein Profil</p>
+        <div class="main-menu-actions">
+          <button id="startGameButton" class="control-button alt">START</button>
+          <button id="settingsMenuButton" class="control-button ghost">EINSTELLUNGEN</button>
+          <button id="profileMenuButton" class="control-button play">PROFIL</button>
+        </div>
+      </div>
+
+      <div id="settingsMenuPanel" class="menu-dialog is-hidden" aria-label="Einstellungen">
+        <div class="menu-dialog-head">
+          <h2>EINSTELLUNGEN</h2>
+          <button id="closeSettingsButton" class="control-button close-deck-button" aria-label="Einstellungen schließen">X</button>
+        </div>
+        <p class="menu-dialog-copy">Einstellungen kommen später hier rein.</p>
+      </div>
+
+      <div id="profileMenuPanel" class="menu-dialog is-hidden" aria-label="Profil">
+        <div class="menu-dialog-head">
+          <h2>PROFIL</h2>
+          <button id="closeProfileButton" class="control-button close-deck-button" aria-label="Profil schließen">X</button>
+        </div>
+        <label class="profile-name-field" for="playerNameInput">
+          <span>Spielername</span>
+          <input id="playerNameInput" type="text" maxlength="24" placeholder="Dein Name">
+        </label>
+        <div class="profile-actions">
+          <button id="createProfileButton" class="control-button alt">PROFIL ANLEGEN</button>
+          <button id="downloadProfileButton" class="control-button reroll">SAVEGAME DOWNLOAD</button>
+          <button id="uploadProfileButton" class="control-button play">SAVEGAME LADEN</button>
+          <input id="uploadProfileInput" class="is-hidden" type="file" accept="application/json,.json">
+        </div>
+        <p id="profileStatusText" class="profile-status-text">Erstelle ein Profil oder lade ein Savegame.</p>
+      </div>
+    </section>
 
     <audio id="soundtrackAudio" src="assets/soundtrack/At the Deck.mp3" preload="auto" loop></audio>
     <script src="script.js"></script>

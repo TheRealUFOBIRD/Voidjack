@@ -75,6 +75,42 @@ const CARD_TYPE_SEQUENCE = [
 ];
 
 const SPECIAL_CARD_TYPE_SEQUENCE = CARD_TYPE_SEQUENCE;
+const FIELD_THEME_SEQUENCE = ["normal", ...CARD_TYPE_SEQUENCE];
+
+const FIELD_THEMES = {
+  normal: {
+    id: "normal",
+    label: "NORMAL"
+  },
+  magical: {
+    id: "magical",
+    label: "MAGISCH"
+  },
+  void: {
+    id: "void",
+    label: "VOID"
+  },
+  elemental: {
+    id: "elemental",
+    label: "ELEMENTAL"
+  },
+  dark: {
+    id: "dark",
+    label: "DUNKEL"
+  },
+  holy: {
+    id: "holy",
+    label: "HEILIG"
+  },
+  golden: {
+    id: "golden",
+    label: "GOLDEN"
+  },
+  cursed: {
+    id: "cursed",
+    label: "VERFLUCHT"
+  }
+};
 
 const BOOSTER_TYPES = {
   normal: {
@@ -82,7 +118,7 @@ const BOOSTER_TYPES = {
     label: "NORMAL BOOSTER",
     typeId: "normal",
     sprite: "assets/boosters/normal.png",
-    baseCost: 6,
+    baseCost: 3,
     description: "Enthält 3 normale Karten."
   },
   random: {
@@ -163,7 +199,7 @@ const SPECIAL_BOOSTER_SEQUENCE = [
 
 const DEALER_BASE_HP = 60;
 const PLAYER_BASE_HP = 80;
-const WIN_REWARD_COINS = 18;
+const WIN_REWARD_COINS = 20;
 const DEBUG_COINS = 25;
 const STARTING_DECK_SIZE = 13;
 const MAX_HAND_SIZE = 7;
@@ -175,17 +211,26 @@ const SHOP_OFFER_COUNT = 3;
 const SHOP_REROLL_COST = 6;
 const CARD_TIER_MIN = 1;
 const CARD_TIER_MAX = 10;
-const STARTING_VOLUME = 20;
+const STARTING_VOLUME = 5;
 const CARD_EXIT_ANIMATION_MS = 360;
 const DAMAGE_COUNT_STEP_MS = 520;
 const DAMAGE_COUNT_FINAL_HOLD_MS = 620;
 const RESULT_CARD_ANIMATION_MS = 760;
 const RESULT_EFFECT_MS = 1100;
 const SCREEN_SHAKE_MS = 280;
+const BUTTON_CLICK_VOLUME = 10;
+const CARD_SELECT_VOLUME = 35;
+const BOOSTER_OPEN_VOLUME = 14;
 const CARD_DEAL_SOUND_SRC = "assets/sounds/card_deal.wav";
+const BUTTON_CLICK_SOUND_SRC = "assets/sounds/buttonklick.mp3";
+const CARD_SELECT_SOUND_SRC = "assets/sounds/cardselect.mp3";
+const BOOSTER_OPEN_SOUND_SRC = "assets/sounds/boosteropen.mp3";
 const COIN_ICON_SRC = "assets/icons/gold-coin-icon-png-11552728459kod1gljkts.png";
+const SAVEGAME_VERSION = 1;
 
 const CARD_LIBRARY = buildCardLibrary();
+let currentProfileName = "";
+let isRunReady = false;
 
 const state = {
   round: 0,
@@ -199,6 +244,7 @@ const state = {
   shopOffers: [],
   boosterChoice: null,
   isDeckOpen: false,
+  fieldThemeId: "normal",
   phase: "combat",
   player: {
     hp: PLAYER_BASE_HP,
@@ -233,6 +279,7 @@ const els = {
   playerTotalLabel: document.getElementById("playerTotalLabel"),
   playerDamageLabel: document.getElementById("playerDamageLabel"),
   playerHpLabel: document.getElementById("playerHpLabel"),
+  playerHpNameLabel: document.getElementById("playerHpNameLabel"),
   playerHpText: document.getElementById("playerHpText"),
   playerHpFill: document.getElementById("playerHpFill"),
   dealerDamageLabel: document.getElementById("dealerDamageLabel"),
@@ -241,6 +288,8 @@ const els = {
   dealerHpFill: document.getElementById("dealerHpFill"),
   coinsLabel: document.getElementById("coinsLabel"),
   dealerStatusLabel: document.getElementById("dealerStatusLabel"),
+  battleFelt: document.getElementById("battleFelt"),
+  fieldThemeLabel: document.getElementById("fieldThemeLabel"),
   playerStatusLabel: document.getElementById("playerStatusLabel"),
   messageBanner: document.getElementById("messageBanner"),
   playSelectedButton: document.getElementById("playSelectedButton"),
@@ -266,6 +315,8 @@ const els = {
   defeatPanel: document.getElementById("defeatPanel"),
   defeatText: document.getElementById("defeatText"),
   restartRunButton: document.getElementById("restartRunButton"),
+  defeatMainMenuButton: document.getElementById("defeatMainMenuButton"),
+  ingameMainMenuButton: document.getElementById("ingameMainMenuButton"),
   deckButton: document.getElementById("deckButton"),
   deckPanel: document.getElementById("deckPanel"),
   closeDeckButton: document.getElementById("closeDeckButton"),
@@ -285,7 +336,22 @@ const els = {
   playerCardCountLabel: document.getElementById("playerCardCountLabel"),
   dealerCardCountLabel: document.getElementById("dealerCardCountLabel"),
   phaseLabel: document.getElementById("phaseLabel"),
-  rewardLabel: document.getElementById("rewardLabel")
+  rewardLabel: document.getElementById("rewardLabel"),
+  mainMenu: document.getElementById("mainMenu"),
+  startGameButton: document.getElementById("startGameButton"),
+  settingsMenuButton: document.getElementById("settingsMenuButton"),
+  profileMenuButton: document.getElementById("profileMenuButton"),
+  settingsMenuPanel: document.getElementById("settingsMenuPanel"),
+  closeSettingsButton: document.getElementById("closeSettingsButton"),
+  profileMenuPanel: document.getElementById("profileMenuPanel"),
+  closeProfileButton: document.getElementById("closeProfileButton"),
+  playerNameInput: document.getElementById("playerNameInput"),
+  activeProfileLabel: document.getElementById("activeProfileLabel"),
+  createProfileButton: document.getElementById("createProfileButton"),
+  downloadProfileButton: document.getElementById("downloadProfileButton"),
+  uploadProfileButton: document.getElementById("uploadProfileButton"),
+  uploadProfileInput: document.getElementById("uploadProfileInput"),
+  profileStatusText: document.getElementById("profileStatusText")
 };
 
 function setSoundtrackVolume(value) {
@@ -293,6 +359,219 @@ function setSoundtrackVolume(value) {
   els.soundtrackAudio.volume = volumePercent / 100;
   els.volumeSlider.value = String(volumePercent);
   els.volumeValueLabel.textContent = `${volumePercent}%`;
+}
+
+function getProfileNameInput() {
+  return els.playerNameInput.value.trim().slice(0, 24);
+}
+
+function getActiveProfileName() {
+  return currentProfileName || "Gast";
+}
+
+function updateProfileUi(message = "") {
+  els.activeProfileLabel.textContent = currentProfileName
+    ? `Profil: ${currentProfileName}`
+    : "Kein Profil";
+  els.playerHpNameLabel.textContent = currentProfileName || "Spieler";
+  if (message) {
+    els.profileStatusText.textContent = message;
+  }
+}
+
+function showMainMenu() {
+  els.mainMenu.classList.remove("is-hidden");
+}
+
+function hideMainMenu() {
+  els.mainMenu.classList.add("is-hidden");
+  els.settingsMenuPanel.classList.add("is-hidden");
+  els.profileMenuPanel.classList.add("is-hidden");
+}
+
+function returnToMainMenu() {
+  saveProfileToBrowser();
+  state.resultEffect = null;
+  state.isActionLocked = false;
+  state.isDeckOpen = false;
+  render();
+  updateProfileUi();
+  showMainMenu();
+}
+
+function openSettingsMenu() {
+  els.settingsMenuPanel.classList.remove("is-hidden");
+  els.profileMenuPanel.classList.add("is-hidden");
+}
+
+function openProfileMenu() {
+  els.profileMenuPanel.classList.remove("is-hidden");
+  els.settingsMenuPanel.classList.add("is-hidden");
+  updateProfileUi();
+}
+
+function createProfile() {
+  const profileName = getProfileNameInput() || "Spieler";
+  currentProfileName = profileName;
+  resetGame();
+  isRunReady = true;
+  updateProfileUi(`Profil "${profileName}" ist bereit.`);
+}
+
+function startGameFromMenu() {
+  if (!currentProfileName) {
+    currentProfileName = getProfileNameInput() || "Gast";
+  }
+  if (!isRunReady) {
+    resetGame();
+    isRunReady = true;
+  }
+  hideMainMenu();
+  updateProfileUi();
+  render();
+  playSoundtrack();
+}
+
+function getSaveGameData() {
+  if (!isRunReady) {
+    resetGame();
+    isRunReady = true;
+  }
+
+  return {
+    version: SAVEGAME_VERSION,
+    savedAt: new Date().toISOString(),
+    profileName: getActiveProfileName(),
+    state: {
+      round: state.round,
+      coins: state.coins,
+      runDeck: state.runDeck,
+      drawPile: state.drawPile,
+      discardPile: state.discardPile,
+      playerCards: state.playerCards,
+      dealerCards: state.dealerCards,
+      shopOffers: state.shopOffers,
+      boosterChoice: state.boosterChoice,
+      fieldThemeId: state.fieldThemeId,
+      phase: state.phase,
+      player: state.player,
+      dealer: state.dealer,
+      rewardCoins: state.rewardCoins,
+      maxPlaysPerRound: state.maxPlaysPerRound,
+      maxDiscardsPerRound: state.maxDiscardsPerRound,
+      playsThisRound: state.playsThisRound,
+      discardsThisRound: state.discardsThisRound,
+      message: state.message,
+      hoveredTemplateId: state.hoveredTemplateId,
+      hoveredTier: state.hoveredTier
+    }
+  };
+}
+
+function downloadProfileSave() {
+  const saveGame = getSaveGameData();
+  const safeName = saveGame.profileName.toLowerCase().replace(/[^a-z0-9_-]+/gi, "-") || "profil";
+  const blob = new Blob([JSON.stringify(saveGame, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `voidjack-${safeName}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  updateProfileUi(`Savegame für "${saveGame.profileName}" wurde erstellt.`);
+}
+
+function saveProfileToBrowser() {
+  if (!isRunReady || !window.localStorage) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      `voidjack-profile-${getActiveProfileName()}`,
+      JSON.stringify(getSaveGameData())
+    );
+  } catch (error) {
+    // Autosaves duerfen das Spiel nicht unterbrechen.
+  }
+}
+
+function sanitizeLoadedPhase(phase) {
+  if (phase === "victory" || phase === "victoryEffect" || phase === "victoryCardEffect") {
+    return "shop";
+  }
+  if (phase === "defeatEffect" || phase === "defeatCardEffect") {
+    return "defeat";
+  }
+  return ["combat", "shop", "defeat"].includes(phase) ? phase : "combat";
+}
+
+function applyProfileSave(saveGame) {
+  if (!saveGame || typeof saveGame !== "object" || !saveGame.state) {
+    throw new Error("Ungültige Savegame-Datei.");
+  }
+
+  const savedState = saveGame.state;
+  currentProfileName = String(saveGame.profileName || "Spieler").slice(0, 24);
+  els.playerNameInput.value = currentProfileName;
+
+  state.actionToken += 1;
+  state.round = Number(savedState.round) || 1;
+  state.coins = Number(savedState.coins) || 0;
+  state.runDeck = Array.isArray(savedState.runDeck) ? savedState.runDeck : buildStartingDeck();
+  state.drawPile = Array.isArray(savedState.drawPile) ? savedState.drawPile : buildCombatDeck();
+  state.discardPile = Array.isArray(savedState.discardPile) ? savedState.discardPile : [];
+  state.playerCards = Array.isArray(savedState.playerCards) ? savedState.playerCards : [];
+  state.dealerCards = Array.isArray(savedState.dealerCards) ? savedState.dealerCards : [];
+  state.selectedCardIds = [];
+  state.shopOffers = Array.isArray(savedState.shopOffers) ? savedState.shopOffers : [];
+  state.boosterChoice = savedState.boosterChoice || null;
+  state.fieldThemeId = FIELD_THEMES[savedState.fieldThemeId] ? savedState.fieldThemeId : "normal";
+  state.phase = sanitizeLoadedPhase(savedState.phase);
+  state.player = savedState.player || { hp: PLAYER_BASE_HP, maxHp: PLAYER_BASE_HP };
+  state.dealer = savedState.dealer || { hp: DEALER_BASE_HP, maxHp: DEALER_BASE_HP };
+  state.rewardCoins = Number(savedState.rewardCoins) || WIN_REWARD_COINS;
+  state.maxPlaysPerRound = Number(savedState.maxPlaysPerRound) || BASE_MAX_PLAYS_PER_ROUND;
+  state.maxDiscardsPerRound = Number(savedState.maxDiscardsPerRound) || BASE_MAX_DISCARDS_PER_ROUND;
+  state.playsThisRound = Number(savedState.playsThisRound) || 0;
+  state.discardsThisRound = Number(savedState.discardsThisRound) || 0;
+  state.message = savedState.message || `Profil "${currentProfileName}" geladen.`;
+  state.hoveredTemplateId = savedState.hoveredTemplateId || state.playerCards[0]?.templateId || null;
+  state.hoveredTier = savedState.hoveredTier || state.playerCards[0]?.tier || CARD_TIER_MIN;
+  state.deckHoveredTemplateId = null;
+  state.deckHoveredTier = CARD_TIER_MIN;
+  state.enteringCardIds = [];
+  state.animatingCardIds = [];
+  state.cardAnimationType = null;
+  state.damageAnimation = null;
+  state.isActionLocked = false;
+  state.resultEffect = null;
+  state.isDeckOpen = false;
+
+  if (state.phase === "shop" && state.shopOffers.length === 0) {
+    state.shopOffers = buildShopOffers();
+  }
+
+  isRunReady = true;
+  hideMainMenu();
+  updateProfileUi(`Profil "${currentProfileName}" geladen.`);
+  render();
+}
+
+function uploadProfileSave(file) {
+  if (!file) {
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    try {
+      applyProfileSave(JSON.parse(String(reader.result)));
+    } catch (error) {
+      updateProfileUi(error.message || "Savegame konnte nicht geladen werden.");
+    }
+  });
+  reader.readAsText(file);
 }
 
 function playSoundtrack() {
@@ -350,6 +629,30 @@ function playCardDealSound() {
   sound.volume = 0.55;
   sound.play().catch(() => {
     // Effekt-Sounds dürfen erst nach einer Nutzerinteraktion starten.
+  });
+}
+
+function playButtonClickSound() {
+  const sound = new Audio(BUTTON_CLICK_SOUND_SRC);
+  sound.volume = Math.max(1, Math.min(100, BUTTON_CLICK_VOLUME)) / 100;
+  sound.play().catch(() => {
+    // Klick-Sounds duerfen erst nach einer Nutzerinteraktion starten.
+  });
+}
+
+function playCardSelectSound() {
+  const sound = new Audio(CARD_SELECT_SOUND_SRC);
+  sound.volume = Math.max(1, Math.min(100, CARD_SELECT_VOLUME)) / 100;
+  sound.play().catch(() => {
+    // Karten-Sounds duerfen erst nach einer Nutzerinteraktion starten.
+  });
+}
+
+function playBoosterOpenSound() {
+  const sound = new Audio(BOOSTER_OPEN_SOUND_SRC);
+  sound.volume = Math.max(1, Math.min(100, BOOSTER_OPEN_VOLUME)) / 100;
+  sound.play().catch(() => {
+    // Booster-Sounds duerfen erst nach einer Nutzerinteraktion starten.
   });
 }
 
@@ -455,11 +758,11 @@ function buildShopOffers() {
 }
 
 function rollShopBoosterId() {
-  const rarePressure = Math.min(0.18, 0.04 + ((state.round - 1) * 0.018));
+  const rarePressure = Math.min(0.08, 0.012 + ((state.round - 1) * 0.007));
   const specialWeight = rarePressure / SPECIAL_BOOSTER_SEQUENCE.length;
   const weightedBoosters = [
-    { id: "normal", weight: 0.68 - rarePressure },
-    { id: "random", weight: 0.32 },
+    { id: "normal", weight: 0.74 - rarePressure },
+    { id: "random", weight: 0.26 },
     ...SPECIAL_BOOSTER_SEQUENCE.map((id) => ({ id, weight: specialWeight }))
   ];
   const totalWeight = weightedBoosters.reduce((sum, item) => sum + item.weight, 0);
@@ -517,6 +820,14 @@ function buildBoosterCards(boosterId) {
 function rollRandomBoosterCardType() {
   const typeIds = ["normal", ...SPECIAL_CARD_TYPE_SEQUENCE];
   return typeIds[Math.floor(Math.random() * typeIds.length)];
+}
+
+function getRoundFieldThemeId(round) {
+  if (round <= 4) {
+    return "normal";
+  }
+
+  return FIELD_THEME_SEQUENCE[Math.floor(Math.random() * FIELD_THEME_SEQUENCE.length)];
 }
 
 function buildCombatDeck() {
@@ -610,6 +921,7 @@ function startRound() {
   state.damageAnimation = null;
   state.playsThisRound = 0;
   state.discardsThisRound = 0;
+  state.fieldThemeId = getRoundFieldThemeId(state.round);
   state.phase = "combat";
   state.dealer.maxHp = DEALER_BASE_HP + ((state.round - 1) * 12);
   state.dealer.hp = state.dealer.maxHp;
@@ -623,6 +935,7 @@ function startRound() {
   state.hoveredTemplateId = state.playerCards[0]?.templateId || null;
   state.hoveredTier = state.playerCards[0]?.tier || CARD_TIER_MIN;
   render();
+  saveProfileToBrowser();
 }
 
 function resetGame() {
@@ -639,6 +952,7 @@ function resetGame() {
   state.runDeck = buildStartingDeck();
   state.player.hp = PLAYER_BASE_HP;
   state.player.maxHp = PLAYER_BASE_HP;
+  isRunReady = true;
   startRound();
 }
 
@@ -733,6 +1047,12 @@ function getDamageCountAnimationMs(cardCount) {
 
 function discardSelectedCards() {
   if (state.phase !== "combat" || state.isActionLocked) {
+    return;
+  }
+
+  if (state.playsThisRound >= state.maxPlaysPerRound && state.dealer.hp > 0) {
+    loseCombat("Du hast alle Spielzüge verbraucht und kannst nur noch abwerfen. Kampf verloren.");
+    render();
     return;
   }
 
@@ -831,6 +1151,12 @@ function damageDealer(amount) {
     return;
   }
 
+  if (state.playsThisRound >= state.maxPlaysPerRound) {
+    loseCombat(`${amount} Schaden verursacht, aber du hast alle Spielzüge verbraucht. Kampf verloren.`);
+    render();
+    return;
+  }
+
   state.message = `${amount} Schaden verursacht. Dealer kontert mit ${dealerDamage} Schaden. Spielen ${state.playsThisRound}/${state.maxPlaysPerRound}, Abwerfen ${state.discardsThisRound}/${state.maxDiscardsPerRound}.`;
   render();
 }
@@ -896,6 +1222,16 @@ function startResultEffect(resultType) {
   }, RESULT_EFFECT_MS);
 }
 
+function loseCombat(message) {
+  if (state.phase === "defeat" || state.phase === "defeatEffect") {
+    return;
+  }
+
+  state.message = message;
+  state.selectedCardIds = [];
+  startResultEffect("defeat");
+}
+
 function winCombat(message = `Gewonnen! +${state.rewardCoins} Münzen.`) {
   if (state.phase === "victory" || state.phase === "victoryEffect" || state.phase === "shop") {
     return;
@@ -921,7 +1257,10 @@ function winCombat(message = `Gewonnen! +${state.rewardCoins} Münzen.`) {
       return;
     }
 
-    state.phase = "victory";
+    state.phase = "shop";
+    state.shopOffers = buildShopOffers();
+    state.boosterChoice = null;
+    state.message = "Willkommen im Shop.";
     state.resultEffect = null;
     state.isActionLocked = false;
     render();
@@ -966,7 +1305,19 @@ function buyShopOffer(index) {
   };
   state.message = `${booster.label} geöffnet. Wähle 1 Karte.`;
   triggerScreenShake();
+  playBoosterOpenSound();
   render();
+  scrollBoosterChoiceIntoView();
+}
+
+function scrollBoosterChoiceIntoView() {
+  window.requestAnimationFrame(() => {
+    els.boosterChoicePanel.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+      inline: "nearest"
+    });
+  });
 }
 
 function chooseBoosterCard(index) {
@@ -1016,6 +1367,11 @@ function getCurrentDeckCards() {
 }
 
 function openDeckPanel() {
+  if (state.isDeckOpen) {
+    closeDeckPanel();
+    return;
+  }
+
   state.isDeckOpen = true;
   const firstCard = getCurrentDeckCards()[0];
   state.deckHoveredTemplateId = firstCard?.templateId || null;
@@ -1044,6 +1400,7 @@ function toggleCardSelection(card) {
     state.selectedCardIds.push(card.instanceId);
   }
 
+  playCardSelectSound();
   render();
 }
 
@@ -1186,7 +1543,7 @@ function renderDeckPanel() {
   const cards = getCurrentDeckCards();
 
   els.deckPanel.classList.toggle("is-hidden", !state.isDeckOpen);
-  els.deckSummary.textContent = `${state.drawPile.length} Deck · ${state.playerCards.length} Hand · ${state.discardPile.length} Ablage`;
+  els.deckSummary.textContent = `${state.drawPile.length} Deck · ${state.playerCards.length} Hand · ${state.discardPile.length} Abgelegt`;
   els.deckList.innerHTML = "";
 
   if (!cards.some((card) => card.templateId === state.deckHoveredTemplateId && card.tier === state.deckHoveredTier)) {
@@ -1319,6 +1676,12 @@ function renderDamageCountOverlay() {
   `;
 }
 
+function renderFieldTheme() {
+  const theme = FIELD_THEMES[state.fieldThemeId] || FIELD_THEMES.normal;
+  els.battleFelt.className = `felt field-theme-${theme.id}`;
+  els.fieldThemeLabel.textContent = theme.label;
+}
+
 function render() {
   const selectedCards = state.playerCards.filter((card) => state.selectedCardIds.includes(card.instanceId));
   const selectedPower = getHandPower(selectedCards);
@@ -1330,6 +1693,7 @@ function render() {
     ? (state.dealer.hp / state.dealer.maxHp) * 100
     : 0;
 
+  renderFieldTheme();
   els.roundLabel.textContent = String(state.round);
   els.deckCountLabel.textContent = String(state.drawPile.length);
   els.playerTotalLabel.textContent = `${selectedPower} (${selectedCards.length}/${MAX_CARDS_PER_TURN})`;
@@ -1375,7 +1739,7 @@ function render() {
   els.dealerStatusLabel.textContent = state.phase === "shop" || state.phase === "victory" || state.phase === "victoryEffect" ? "Besiegt" : "Enemy";
   els.playSelectedButton.textContent = `Spielen ${Math.max(0, state.maxPlaysPerRound - state.playsThisRound)}/${state.maxPlaysPerRound}`;
   els.discardSelectedButton.textContent = `Abwerfen ${Math.max(0, state.maxDiscardsPerRound - state.discardsThisRound)}/${state.maxDiscardsPerRound}`;
-  els.shopRerollButton.innerHTML = `Aktualisieren ${createCoinCostMarkup(SHOP_REROLL_COST)}`;
+  els.shopRerollButton.innerHTML = `Neu Würfeln ${createCoinCostMarkup(SHOP_REROLL_COST)}`;
 
   els.playSelectedButton.disabled =
     state.phase !== "combat"
@@ -1396,8 +1760,8 @@ function render() {
   els.resultEffect.classList.toggle("is-hidden", !state.resultEffect);
   els.resultEffect.classList.toggle("is-victory", state.resultEffect === "victory");
   els.resultEffect.classList.toggle("is-defeat", state.resultEffect === "defeat");
-  els.resultEffectText.textContent = state.resultEffect === "victory"
-    ? "SIEG"
+  els.resultEffectText.innerHTML = state.resultEffect === "victory"
+    ? `SIEG<span>+${state.rewardCoins} COINS</span>`
     : state.resultEffect === "defeat"
       ? "NIEDERLAGE"
       : "";
@@ -1422,16 +1786,35 @@ els.shopNextFightButton.addEventListener("click", startRound);
 els.shopRerollButton.addEventListener("click", rerollShopOffers);
 els.continueToShopButton.addEventListener("click", continueToShop);
 els.restartRunButton.addEventListener("click", resetGame);
+els.defeatMainMenuButton.addEventListener("click", returnToMainMenu);
+els.ingameMainMenuButton.addEventListener("click", returnToMainMenu);
 els.resetButton.addEventListener("click", resetGame);
 els.deckButton.addEventListener("click", openDeckPanel);
 els.closeDeckButton.addEventListener("click", closeDeckPanel);
+els.startGameButton.addEventListener("click", startGameFromMenu);
+els.settingsMenuButton.addEventListener("click", openSettingsMenu);
+els.profileMenuButton.addEventListener("click", openProfileMenu);
+els.closeSettingsButton.addEventListener("click", () => els.settingsMenuPanel.classList.add("is-hidden"));
+els.closeProfileButton.addEventListener("click", () => els.profileMenuPanel.classList.add("is-hidden"));
+els.createProfileButton.addEventListener("click", createProfile);
+els.downloadProfileButton.addEventListener("click", downloadProfileSave);
+els.uploadProfileButton.addEventListener("click", () => els.uploadProfileInput.click());
+els.uploadProfileInput.addEventListener("change", (event) => {
+  uploadProfileSave(event.target.files[0]);
+  event.target.value = "";
+});
 
 document.addEventListener("click", (event) => {
   if (event.target.closest("button, .playing-card, .deck-list-item")) {
     triggerScreenShake();
     playSoundtrack();
   }
+
+  if (event.target.closest("button")) {
+    playButtonClickSound();
+  }
 });
 
 initSoundtrack();
-resetGame();
+updateProfileUi();
+showMainMenu();
