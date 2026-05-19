@@ -83,6 +83,8 @@ const DEBUG_COINS = 25;
 const STARTING_DECK_SIZE = 8;
 const MAX_HAND_SIZE = 7;
 const MAX_CARDS_PER_TURN = 3;
+const BASE_MAX_PLAYS_PER_ROUND = 4;
+const BASE_MAX_DISCARDS_PER_ROUND = 2;
 const DEALER_HAND_SIZE = 2;
 const SHOP_OFFER_COUNT = 3;
 const SHOP_BASE_CARD_COST = 14;
@@ -90,6 +92,7 @@ const CARD_TIER_MIN = 1;
 const CARD_TIER_MAX = 10;
 const STARTING_VOLUME = 20;
 const CARD_EXIT_ANIMATION_MS = 360;
+const RESULT_CARD_ANIMATION_MS = 760;
 const RESULT_EFFECT_MS = 1100;
 const SCREEN_SHAKE_MS = 280;
 const CARD_DEAL_SOUND_SRC = "assets/sounds/card_deal.wav";
@@ -117,6 +120,10 @@ const state = {
     maxHp: DEALER_BASE_HP
   },
   rewardCoins: WIN_REWARD_COINS,
+  maxPlaysPerRound: BASE_MAX_PLAYS_PER_ROUND,
+  maxDiscardsPerRound: BASE_MAX_DISCARDS_PER_ROUND,
+  playsThisRound: 0,
+  discardsThisRound: 0,
   message: "Ziehe bis 7 Karten. Spiele bis zu 3 Karten pro Zug.",
   hoveredTemplateId: null,
   hoveredTier: CARD_TIER_MIN,
@@ -152,7 +159,6 @@ const els = {
   debugCoinsButton: document.getElementById("debugCoinsButton"),
   nextFightButton: document.getElementById("nextFightButton"),
   shopNextFightButton: document.getElementById("shopNextFightButton"),
-  newRoundButton: document.getElementById("newRoundButton"),
   resetButton: document.getElementById("resetButton"),
   dealerCards: document.getElementById("dealerCards"),
   playerCards: document.getElementById("playerCards"),
@@ -476,11 +482,13 @@ function startRound() {
   state.selectedCardIds = [];
   state.shopOffers = [];
   state.enteringCardIds = [];
+  state.playsThisRound = 0;
+  state.discardsThisRound = 0;
   state.phase = "combat";
   state.dealer.maxHp = DEALER_BASE_HP + ((state.round - 1) * 12);
   state.dealer.hp = state.dealer.maxHp;
   state.rewardCoins = WIN_REWARD_COINS + ((state.round - 1) * 4);
-  state.message = "Ziehe bis 7 Karten. Spiele bis zu 3 Karten pro Zug.";
+  state.message = `Ziehe bis 7 Karten. Spielen ${state.playsThisRound}/${state.maxPlaysPerRound}, Abwerfen ${state.discardsThisRound}/${state.maxDiscardsPerRound}.`;
 
   drawPlayerHand();
   drawDealerHand();
@@ -508,6 +516,12 @@ function resetGame() {
 
 function playSelectedCards() {
   if (state.phase !== "combat" || state.isActionLocked) {
+    return;
+  }
+
+  if (state.playsThisRound >= state.maxPlaysPerRound) {
+    state.message = `Du kannst in diesem Kampf nur ${state.maxPlaysPerRound} mal Karten spielen.`;
+    render();
     return;
   }
 
@@ -544,12 +558,19 @@ function playSelectedCards() {
     state.animatingCardIds = [];
     state.cardAnimationType = null;
     state.isActionLocked = false;
+    state.playsThisRound += 1;
     damageDealer(damage);
   }, CARD_EXIT_ANIMATION_MS);
 }
 
 function discardSelectedCards() {
   if (state.phase !== "combat" || state.isActionLocked) {
+    return;
+  }
+
+  if (state.discardsThisRound >= state.maxDiscardsPerRound) {
+    state.message = `Du kannst in diesem Kampf nur ${state.maxDiscardsPerRound} mal Karten abwerfen.`;
+    render();
     return;
   }
 
@@ -591,10 +612,19 @@ function discardSelectedCards() {
     state.animatingCardIds = [];
     state.cardAnimationType = null;
     state.isActionLocked = false;
+    state.discardsThisRound += 1;
     state.hoveredTemplateId = state.playerCards[0]?.templateId || null;
+
+    if (state.playerCards.length === 0 && state.dealer.hp > 0) {
+      state.message = `${selectedCards.length} Karte(n) abgeworfen, aber du hast keine Karten mehr. Kampf verloren.`;
+      startResultEffect("defeat");
+      render();
+      return;
+    }
+
     state.message = drawnCards === selectedCards.length
-      ? `${selectedCards.length} Karte(n) abgeworfen und ${drawnCards} nachgezogen.`
-      : `${selectedCards.length} Karte(n) abgeworfen. Nur ${drawnCards} Karte(n) im Deck gefunden.`;
+      ? `${selectedCards.length} Karte(n) abgeworfen und ${drawnCards} nachgezogen. Abwerfen ${state.discardsThisRound}/${state.maxDiscardsPerRound}.`
+      : `${selectedCards.length} Karte(n) abgeworfen. Nur ${drawnCards} Karte(n) im Deck gefunden. Abwerfen ${state.discardsThisRound}/${state.maxDiscardsPerRound}.`;
     render();
     clearEnteringCardsSoon();
   }, CARD_EXIT_ANIMATION_MS);
@@ -604,7 +634,14 @@ function damageDealer(amount) {
   state.dealer.hp = Math.max(0, state.dealer.hp - amount);
 
   if (state.dealer.hp <= 0) {
-    winCombat(`Dealer besiegt! +${state.rewardCoins} Coins.`);
+    state.phase = "victoryCardEffect";
+    state.message = `Dealer besiegt! +${state.rewardCoins} Coins.`;
+    state.dealerCards.forEach((card) => {
+      card.hidden = false;
+    });
+    animateCardsBeforeResult("dealer-defeat", state.dealerCards, () => {
+      winCombat(`Dealer besiegt! +${state.rewardCoins} Coins.`);
+    });
     return;
   }
 
@@ -626,7 +663,7 @@ function damageDealer(amount) {
     return;
   }
 
-  state.message = `${amount} Schaden verursacht. Dealer kontert mit ${dealerDamage} Schaden. Hand wieder auf ${state.playerCards.length}/${MAX_HAND_SIZE}.`;
+  state.message = `${amount} Schaden verursacht. Dealer kontert mit ${dealerDamage} Schaden. Spielen ${state.playsThisRound}/${state.maxPlaysPerRound}, Abwerfen ${state.discardsThisRound}/${state.maxDiscardsPerRound}.`;
   render();
 }
 
@@ -634,11 +671,43 @@ function damagePlayer(amount) {
   state.player.hp = Math.max(0, state.player.hp - amount);
 
   if (state.player.hp <= 0) {
-    startResultEffect("defeat");
+    state.phase = "defeatCardEffect";
     state.message = `Du wurdest besiegt. Dealer hat ${amount} Schaden gemacht.`;
     state.selectedCardIds = [];
-    render();
+    animateCardsBeforeResult("player-defeat", state.playerCards, () => {
+      startResultEffect("defeat");
+      render();
+    });
   }
+}
+
+function animateCardsBeforeResult(animationType, cards, afterAnimation) {
+  const animatedCardIds = cards
+    .filter((card) => card && !card.hidden)
+    .map((card) => card.instanceId);
+
+  if (animatedCardIds.length === 0) {
+    afterAnimation();
+    return;
+  }
+
+  const actionToken = state.actionToken + 1;
+  state.actionToken = actionToken;
+  state.isActionLocked = true;
+  state.animatingCardIds = animatedCardIds;
+  state.cardAnimationType = animationType;
+  triggerScreenShake();
+  render();
+
+  window.setTimeout(() => {
+    if (state.actionToken !== actionToken) {
+      return;
+    }
+
+    state.animatingCardIds = [];
+    state.cardAnimationType = null;
+    afterAnimation();
+  }, RESULT_CARD_ANIMATION_MS);
 }
 
 function startResultEffect(resultType) {
@@ -1030,10 +1099,19 @@ function render() {
         ? "Besiegt"
         : `${selectedCards.length}/${MAX_CARDS_PER_TURN} Karten`;
   els.dealerStatusLabel.textContent = state.phase === "shop" || state.phase === "victory" || state.phase === "victoryEffect" ? "Besiegt" : "Enemy";
+  els.playSelectedButton.textContent = `Spielen ${Math.max(0, state.maxPlaysPerRound - state.playsThisRound)}/${state.maxPlaysPerRound}`;
+  els.discardSelectedButton.textContent = `Abwerfen ${Math.max(0, state.maxDiscardsPerRound - state.discardsThisRound)}/${state.maxDiscardsPerRound}`;
 
-  els.playSelectedButton.disabled = state.phase !== "combat" || selectedCards.length === 0 || state.isActionLocked;
-  els.discardSelectedButton.disabled = state.phase !== "combat" || selectedCards.length === 0 || state.isActionLocked;
-  els.newRoundButton.disabled = state.phase === "combat" || state.isActionLocked;
+  els.playSelectedButton.disabled =
+    state.phase !== "combat"
+    || selectedCards.length === 0
+    || state.isActionLocked
+    || state.playsThisRound >= state.maxPlaysPerRound;
+  els.discardSelectedButton.disabled =
+    state.phase !== "combat"
+    || selectedCards.length === 0
+    || state.isActionLocked
+    || state.discardsThisRound >= state.maxDiscardsPerRound;
   els.nextFightButton.classList.add("is-hidden");
   els.shopPanel.classList.toggle("is-hidden", state.phase !== "shop");
   els.victoryPanel.classList.toggle("is-hidden", state.phase !== "victory");
@@ -1064,7 +1142,6 @@ els.nextFightButton.addEventListener("click", startRound);
 els.shopNextFightButton.addEventListener("click", startRound);
 els.continueToShopButton.addEventListener("click", continueToShop);
 els.restartRunButton.addEventListener("click", resetGame);
-els.newRoundButton.addEventListener("click", startRound);
 els.resetButton.addEventListener("click", resetGame);
 els.deckButton.addEventListener("click", openDeckPanel);
 els.closeDeckButton.addEventListener("click", closeDeckPanel);
