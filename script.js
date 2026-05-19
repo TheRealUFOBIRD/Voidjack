@@ -76,26 +76,114 @@ const CARD_TYPE_SEQUENCE = [
 
 const SPECIAL_CARD_TYPE_SEQUENCE = CARD_TYPE_SEQUENCE;
 
+const BOOSTER_TYPES = {
+  normal: {
+    id: "normal",
+    label: "NORMAL BOOSTER",
+    typeId: "normal",
+    sprite: "assets/boosters/normal.png",
+    baseCost: 6,
+    description: "Enthält 3 normale Karten."
+  },
+  random: {
+    id: "random",
+    label: "RANDOM BOOSTER",
+    typeId: "random",
+    sprite: "assets/boosters/random.png",
+    baseCost: 9,
+    description: "Enthält 3 zufällige Karten aus allen Arten."
+  },
+  magical: {
+    id: "magical",
+    label: "MAGISCH BOOSTER",
+    typeId: "magical",
+    sprite: "assets/boosters/magisch.png",
+    baseCost: 15,
+    description: "Enthält 3 magische Karten."
+  },
+  void: {
+    id: "void",
+    label: "VOID BOOSTER",
+    typeId: "void",
+    sprite: "assets/boosters/void.png",
+    baseCost: 16,
+    description: "Enthält 3 Void-Karten."
+  },
+  elemental: {
+    id: "elemental",
+    label: "ELEMENTAL BOOSTER",
+    typeId: "elemental",
+    sprite: "assets/boosters/elementar.png",
+    baseCost: 15,
+    description: "Enthält 3 Elemental-Karten."
+  },
+  dark: {
+    id: "dark",
+    label: "DUNKEL BOOSTER",
+    typeId: "dark",
+    sprite: "assets/boosters/dunkel.png",
+    baseCost: 15,
+    description: "Enthält 3 dunkle Karten."
+  },
+  holy: {
+    id: "holy",
+    label: "HEILIG BOOSTER",
+    typeId: "holy",
+    sprite: "assets/boosters/heilig.png",
+    baseCost: 16,
+    description: "Enthält 3 heilige Karten."
+  },
+  golden: {
+    id: "golden",
+    label: "GOLDEN BOOSTER",
+    typeId: "golden",
+    sprite: "assets/boosters/golden.png",
+    baseCost: 18,
+    description: "Enthält 3 goldene Karten."
+  },
+  cursed: {
+    id: "cursed",
+    label: "VERFLUCHT BOOSTER",
+    typeId: "cursed",
+    sprite: "assets/boosters/verflucht.png",
+    baseCost: 13,
+    description: "Enthält 3 verfluchte Karten."
+  }
+};
+
+const SPECIAL_BOOSTER_SEQUENCE = [
+  "magical",
+  "void",
+  "elemental",
+  "dark",
+  "holy",
+  "golden",
+  "cursed"
+];
+
 const DEALER_BASE_HP = 60;
 const PLAYER_BASE_HP = 80;
 const WIN_REWARD_COINS = 18;
 const DEBUG_COINS = 25;
-const STARTING_DECK_SIZE = 8;
+const STARTING_DECK_SIZE = 13;
 const MAX_HAND_SIZE = 7;
 const MAX_CARDS_PER_TURN = 3;
 const BASE_MAX_PLAYS_PER_ROUND = 4;
 const BASE_MAX_DISCARDS_PER_ROUND = 2;
 const DEALER_HAND_SIZE = 2;
 const SHOP_OFFER_COUNT = 3;
-const SHOP_BASE_CARD_COST = 14;
+const SHOP_REROLL_COST = 6;
 const CARD_TIER_MIN = 1;
 const CARD_TIER_MAX = 10;
 const STARTING_VOLUME = 20;
 const CARD_EXIT_ANIMATION_MS = 360;
+const DAMAGE_COUNT_STEP_MS = 520;
+const DAMAGE_COUNT_FINAL_HOLD_MS = 620;
 const RESULT_CARD_ANIMATION_MS = 760;
 const RESULT_EFFECT_MS = 1100;
 const SCREEN_SHAKE_MS = 280;
 const CARD_DEAL_SOUND_SRC = "assets/sounds/card_deal.wav";
+const COIN_ICON_SRC = "assets/icons/gold-coin-icon-png-11552728459kod1gljkts.png";
 
 const CARD_LIBRARY = buildCardLibrary();
 
@@ -109,6 +197,7 @@ const state = {
   dealerCards: [],
   selectedCardIds: [],
   shopOffers: [],
+  boosterChoice: null,
   isDeckOpen: false,
   phase: "combat",
   player: {
@@ -132,6 +221,7 @@ const state = {
   enteringCardIds: [],
   animatingCardIds: [],
   cardAnimationType: null,
+  damageAnimation: null,
   isActionLocked: false,
   actionToken: 0,
   resultEffect: null
@@ -159,12 +249,17 @@ const els = {
   debugCoinsButton: document.getElementById("debugCoinsButton"),
   nextFightButton: document.getElementById("nextFightButton"),
   shopNextFightButton: document.getElementById("shopNextFightButton"),
+  shopRerollButton: document.getElementById("shopRerollButton"),
   resetButton: document.getElementById("resetButton"),
   dealerCards: document.getElementById("dealerCards"),
   playerCards: document.getElementById("playerCards"),
+  damageCountOverlay: document.getElementById("damageCountOverlay"),
   shopPanel: document.getElementById("shopPanel"),
   shopCoinsLabel: document.getElementById("shopCoinsLabel"),
   shopOffers: document.getElementById("shopOffers"),
+  boosterChoicePanel: document.getElementById("boosterChoicePanel"),
+  boosterChoiceTitle: document.getElementById("boosterChoiceTitle"),
+  boosterChoices: document.getElementById("boosterChoices"),
   victoryPanel: document.getElementById("victoryPanel"),
   victoryText: document.getElementById("victoryText"),
   continueToShopButton: document.getElementById("continueToShopButton"),
@@ -343,28 +438,41 @@ function getNormalTemplateIds() {
   return Object.keys(CARD_LIBRARY).filter((templateId) => !CARD_LIBRARY[templateId].isSpecial);
 }
 
-function getSpecialTemplateIds() {
-  return Object.keys(CARD_LIBRARY).filter((templateId) => CARD_LIBRARY[templateId].isSpecial);
+function getTemplateIdsForType(typeId) {
+  return Object.keys(CARD_LIBRARY).filter((templateId) => CARD_LIBRARY[templateId].typeId === typeId);
 }
 
 function buildShopOffers() {
   return Array.from({ length: SHOP_OFFER_COUNT }, () => {
-    const isSpecialOffer = Math.random() < getShopSpecialChance();
-    const templateIds = isSpecialOffer ? getSpecialTemplateIds() : getNormalTemplateIds();
-    const templateId = templateIds[Math.floor(Math.random() * templateIds.length)];
-    const tier = isSpecialOffer ? rollShopCardTier() : CARD_TIER_MIN;
+    const boosterId = rollShopBoosterId();
 
     return {
-      templateId,
-      tier,
-      cost: getShopCardCost(templateId, tier),
+      boosterId,
+      cost: getBoosterCost(boosterId),
       isSold: false
     };
   });
 }
 
-function getShopSpecialChance() {
-  return Math.min(0.72, 0.14 + ((state.round - 1) * 0.07));
+function rollShopBoosterId() {
+  const rarePressure = Math.min(0.18, 0.04 + ((state.round - 1) * 0.018));
+  const specialWeight = rarePressure / SPECIAL_BOOSTER_SEQUENCE.length;
+  const weightedBoosters = [
+    { id: "normal", weight: 0.68 - rarePressure },
+    { id: "random", weight: 0.32 },
+    ...SPECIAL_BOOSTER_SEQUENCE.map((id) => ({ id, weight: specialWeight }))
+  ];
+  const totalWeight = weightedBoosters.reduce((sum, item) => sum + item.weight, 0);
+  let roll = Math.random() * totalWeight;
+
+  for (const item of weightedBoosters) {
+    roll -= item.weight;
+    if (roll <= 0) {
+      return item.id;
+    }
+  }
+
+  return "normal";
 }
 
 function rollShopCardTier() {
@@ -383,16 +491,32 @@ function rollShopCardTier() {
   return tier;
 }
 
-function getShopCardCost(templateId, tier = CARD_TIER_MIN) {
-  const template = CARD_LIBRARY[templateId];
-  const typePremiums = {
-    golden: 6,
-    cursed: -2,
-    void: 4,
-    holy: 4
-  };
-  const specialPremium = template.isSpecial ? 4 : 0;
-  return SHOP_BASE_CARD_COST + (state.round * 2) + specialPremium + ((tier - 1) * 3) + (typePremiums[template.typeId] || 0);
+function getBoosterCost(boosterId) {
+  const booster = BOOSTER_TYPES[boosterId];
+  return booster.baseCost + (state.round * 2);
+}
+
+function buildBoosterCards(boosterId) {
+  const booster = BOOSTER_TYPES[boosterId];
+  const cards = [];
+
+  for (let i = 0; i < 3; i += 1) {
+    const typeId = booster.typeId === "random"
+      ? rollRandomBoosterCardType()
+      : booster.typeId;
+    const templateIds = getTemplateIdsForType(typeId);
+    const templateId = templateIds[Math.floor(Math.random() * templateIds.length)];
+    const tier = typeId === "normal" ? CARD_TIER_MIN : rollShopCardTier();
+
+    cards.push(createRunDeckEntry(templateId, tier));
+  }
+
+  return cards;
+}
+
+function rollRandomBoosterCardType() {
+  const typeIds = ["normal", ...SPECIAL_CARD_TYPE_SEQUENCE];
+  return typeIds[Math.floor(Math.random() * typeIds.length)];
 }
 
 function buildCombatDeck() {
@@ -481,7 +605,9 @@ function startRound() {
   state.dealerCards = [];
   state.selectedCardIds = [];
   state.shopOffers = [];
+  state.boosterChoice = null;
   state.enteringCardIds = [];
+  state.damageAnimation = null;
   state.playsThisRound = 0;
   state.discardsThisRound = 0;
   state.phase = "combat";
@@ -504,8 +630,10 @@ function resetGame() {
   state.isActionLocked = false;
   state.animatingCardIds = [];
   state.cardAnimationType = null;
+  state.damageAnimation = null;
   state.resultEffect = null;
   state.shopOffers = [];
+  state.boosterChoice = null;
   state.round = 0;
   state.coins = 0;
   state.runDeck = buildStartingDeck();
@@ -545,7 +673,7 @@ function playSelectedCards() {
   state.animatingCardIds = selectedCardIds;
   state.cardAnimationType = "play";
   playCardDealSound();
-  render();
+  startDamageCountAnimation(selectedCards, actionToken);
 
   window.setTimeout(() => {
     if (state.actionToken !== actionToken) {
@@ -557,10 +685,50 @@ function playSelectedCards() {
     state.selectedCardIds = [];
     state.animatingCardIds = [];
     state.cardAnimationType = null;
+    state.damageAnimation = null;
     state.isActionLocked = false;
     state.playsThisRound += 1;
     damageDealer(damage);
-  }, CARD_EXIT_ANIMATION_MS);
+  }, getDamageCountAnimationMs(selectedCards.length));
+}
+
+function startDamageCountAnimation(cards, actionToken) {
+  const values = cards.map((card) => CARD_LIBRARY[card.templateId].value);
+
+  state.damageAnimation = {
+    values,
+    total: 0,
+    finalTotal: values.reduce((sum, value) => sum + value, 0),
+    duration: getDamageCountAnimationMs(values.length)
+  };
+  render();
+
+  values.forEach((value, index) => {
+    window.setTimeout(() => {
+      if (state.actionToken !== actionToken || !state.damageAnimation) {
+        return;
+      }
+
+      state.damageAnimation.total += value;
+      renderDamageCountOverlay();
+    }, DAMAGE_COUNT_STEP_MS * index + 360);
+  });
+
+  window.setTimeout(() => {
+    if (state.actionToken !== actionToken || !state.damageAnimation) {
+      return;
+    }
+
+    state.damageAnimation.total = state.damageAnimation.finalTotal;
+    renderDamageCountOverlay();
+  }, getDamageCountAnimationMs(values.length) - 220);
+}
+
+function getDamageCountAnimationMs(cardCount) {
+  return Math.max(
+    CARD_EXIT_ANIMATION_MS,
+    (Math.max(0, cardCount - 1) * DAMAGE_COUNT_STEP_MS) + 360 + DAMAGE_COUNT_FINAL_HOLD_MS
+  );
 }
 
 function discardSelectedCards() {
@@ -635,12 +803,12 @@ function damageDealer(amount) {
 
   if (state.dealer.hp <= 0) {
     state.phase = "victoryCardEffect";
-    state.message = `Dealer besiegt! +${state.rewardCoins} Coins.`;
+    state.message = `Dealer besiegt! +${state.rewardCoins} Münzen.`;
     state.dealerCards.forEach((card) => {
       card.hidden = false;
     });
     animateCardsBeforeResult("dealer-defeat", state.dealerCards, () => {
-      winCombat(`Dealer besiegt! +${state.rewardCoins} Coins.`);
+      winCombat(`Dealer besiegt! +${state.rewardCoins} Münzen.`);
     });
     return;
   }
@@ -728,7 +896,7 @@ function startResultEffect(resultType) {
   }, RESULT_EFFECT_MS);
 }
 
-function winCombat(message = `Gewonnen! +${state.rewardCoins} Coins.`) {
+function winCombat(message = `Gewonnen! +${state.rewardCoins} Münzen.`) {
   if (state.phase === "victory" || state.phase === "victoryEffect" || state.phase === "shop") {
     return;
   }
@@ -767,12 +935,13 @@ function continueToShop() {
 
   state.phase = "shop";
   state.shopOffers = buildShopOffers();
+  state.boosterChoice = null;
   state.message = "Willkommen im Shop.";
   render();
 }
 
 function buyShopOffer(index) {
-  if (state.phase !== "shop") {
+  if (state.phase !== "shop" || state.boosterChoice) {
     return;
   }
 
@@ -782,22 +951,63 @@ function buyShopOffer(index) {
   }
 
   if (state.coins < offer.cost) {
-    state.message = "Nicht genug Coins.";
+    state.message = "Nicht genug Münzen.";
     render();
     return;
   }
 
-  const template = CARD_LIBRARY[offer.templateId];
+  const booster = BOOSTER_TYPES[offer.boosterId];
+  const newCards = buildBoosterCards(offer.boosterId);
   state.coins -= offer.cost;
-  state.runDeck.push(createRunDeckEntry(offer.templateId, offer.tier));
   offer.isSold = true;
-  state.message = `${getCardDisplayName(template, offer.tier)} gekauft und deinem Deck hinzugefügt.`;
+  state.boosterChoice = {
+    boosterId: offer.boosterId,
+    cards: newCards
+  };
+  state.message = `${booster.label} geöffnet. Wähle 1 Karte.`;
+  triggerScreenShake();
+  render();
+}
+
+function chooseBoosterCard(index) {
+  if (state.phase !== "shop" || !state.boosterChoice) {
+    return;
+  }
+
+  const chosenCard = state.boosterChoice.cards[index];
+  if (!chosenCard) {
+    return;
+  }
+
+  const template = CARD_LIBRARY[chosenCard.templateId];
+  state.runDeck.push(chosenCard);
+  state.message = `${getCardDisplayName(template, chosenCard.tier)} deinem Deck hinzugefügt.`;
+  state.boosterChoice = null;
+  triggerScreenShake();
+  render();
+}
+
+function rerollShopOffers() {
+  if (state.phase !== "shop" || state.boosterChoice) {
+    return;
+  }
+
+  if (state.coins < SHOP_REROLL_COST) {
+    state.message = `Nicht genug Münzen. Aktualisieren kostet ${SHOP_REROLL_COST}.`;
+    render();
+    return;
+  }
+
+  state.coins -= SHOP_REROLL_COST;
+  state.shopOffers = buildShopOffers();
+  state.message = `Shop aktualisiert. -${SHOP_REROLL_COST}.`;
+  triggerScreenShake();
   render();
 }
 
 function addDebugCoins() {
   state.coins += DEBUG_COINS;
-  state.message = `Debug: +${DEBUG_COINS} Coins.`;
+  state.message = `Debug: +${DEBUG_COINS}.`;
   render();
 }
 
@@ -862,6 +1072,10 @@ function createCardElement(template, options = {}) {
   }
   if (options.animationType) {
     article.classList.add(`is-${options.animationType}`);
+    const animationIndex = state.animatingCardIds.indexOf(options.card?.instanceId);
+    if (animationIndex >= 0) {
+      article.style.setProperty("--play-index", animationIndex);
+    }
   }
   if (options.selectable) {
     article.classList.add("is-selectable");
@@ -1023,26 +1237,86 @@ function renderShopOffers() {
   els.shopOffers.innerHTML = "";
 
   state.shopOffers.forEach((offer, index) => {
-    const template = CARD_LIBRARY[offer.templateId];
+    const booster = BOOSTER_TYPES[offer.boosterId];
     const item = document.createElement("article");
     item.className = "shop-card offer-card";
     item.innerHTML = `
-      <div class="shop-card-preview"></div>
+      <div class="shop-card-preview">
+        <img class="booster-pack-image" src="${booster.sprite}" alt="${booster.label}">
+      </div>
       <div class="shop-card-copy">
-        <strong>${getCardDisplayName(template, offer.tier)}</strong>
-        <span>${template.typeLabel}${offer.tier > CARD_TIER_MIN ? ` - Stufe ${offer.tier}` : ""} - ${template.value} Schaden</span>
+        <strong>${booster.label}</strong>
+        <span>${booster.description}</span>
       </div>
       <button class="control-button ${offer.isSold ? "ghost" : "alt"}" type="button">
-        ${offer.isSold ? "Gekauft" : `${offer.cost} Coins`}
+        ${offer.isSold ? "Geöffnet" : createCoinCostMarkup(offer.cost)}
       </button>
     `;
 
-    item.querySelector(".shop-card-preview").appendChild(createCardElement(template, { interactive: false, tier: offer.tier }));
     const buyButton = item.querySelector("button");
-    buyButton.disabled = offer.isSold || state.coins < offer.cost;
+    buyButton.disabled = Boolean(state.boosterChoice) || offer.isSold || state.coins < offer.cost;
     buyButton.addEventListener("click", () => buyShopOffer(index));
     els.shopOffers.appendChild(item);
   });
+}
+
+function renderBoosterChoices() {
+  const choice = state.boosterChoice;
+  els.boosterChoicePanel.classList.toggle("is-hidden", !choice);
+  els.boosterChoices.innerHTML = "";
+
+  if (!choice) {
+    return;
+  }
+
+  const booster = BOOSTER_TYPES[choice.boosterId];
+  els.boosterChoiceTitle.textContent = `${booster.label}: Wähle 1 Karte`;
+
+  choice.cards.forEach((card, index) => {
+    const template = CARD_LIBRARY[card.templateId];
+    const item = document.createElement("button");
+    item.className = "booster-choice-card";
+    item.type = "button";
+    item.innerHTML = `
+      <div class="booster-choice-card-preview"></div>
+      <strong>${getCardDisplayName(template, card.tier)}</strong>
+      <span>${template.typeLabel}${card.tier > CARD_TIER_MIN ? ` · STUFE ${card.tier}` : ""} · ${template.value} Schaden</span>
+    `;
+    item.querySelector(".booster-choice-card-preview").appendChild(createCardElement(template, {
+      interactive: false,
+      tier: card.tier
+    }));
+    item.addEventListener("click", () => chooseBoosterCard(index));
+    els.boosterChoices.appendChild(item);
+  });
+}
+
+function createCoinCostMarkup(amount) {
+  return `
+    <span class="coin-cost">
+      <span>${amount}</span>
+      <img src="${COIN_ICON_SRC}" alt="Coins">
+    </span>
+  `;
+}
+
+function renderDamageCountOverlay() {
+  if (!state.damageAnimation) {
+    els.damageCountOverlay.classList.remove("is-active");
+    els.damageCountOverlay.innerHTML = "";
+    return;
+  }
+
+  const valuesMarkup = state.damageAnimation.values
+    .map((value, index) => `<span style="--hit-index: ${index}">+${value}</span>`)
+    .join("");
+
+  els.damageCountOverlay.classList.add("is-active");
+  els.damageCountOverlay.style.setProperty("--damage-duration", `${state.damageAnimation.duration}ms`);
+  els.damageCountOverlay.innerHTML = `
+    <div class="damage-count-values">${valuesMarkup}</div>
+    <div class="damage-count-total">${state.damageAnimation.total}</div>
+  `;
 }
 
 function render() {
@@ -1101,6 +1375,7 @@ function render() {
   els.dealerStatusLabel.textContent = state.phase === "shop" || state.phase === "victory" || state.phase === "victoryEffect" ? "Besiegt" : "Enemy";
   els.playSelectedButton.textContent = `Spielen ${Math.max(0, state.maxPlaysPerRound - state.playsThisRound)}/${state.maxPlaysPerRound}`;
   els.discardSelectedButton.textContent = `Abwerfen ${Math.max(0, state.maxDiscardsPerRound - state.discardsThisRound)}/${state.maxDiscardsPerRound}`;
+  els.shopRerollButton.innerHTML = `Aktualisieren ${createCoinCostMarkup(SHOP_REROLL_COST)}`;
 
   els.playSelectedButton.disabled =
     state.phase !== "combat"
@@ -1112,6 +1387,8 @@ function render() {
     || selectedCards.length === 0
     || state.isActionLocked
     || state.discardsThisRound >= state.maxDiscardsPerRound;
+  els.shopRerollButton.disabled = state.phase !== "shop" || Boolean(state.boosterChoice) || state.coins < SHOP_REROLL_COST;
+  els.shopNextFightButton.disabled = state.phase === "shop" && Boolean(state.boosterChoice);
   els.nextFightButton.classList.add("is-hidden");
   els.shopPanel.classList.toggle("is-hidden", state.phase !== "shop");
   els.victoryPanel.classList.toggle("is-hidden", state.phase !== "victory");
@@ -1124,12 +1401,14 @@ function render() {
     : state.resultEffect === "defeat"
       ? "NIEDERLAGE"
       : "";
-  els.victoryText.textContent = `Belohnung: +${state.rewardCoins} Coins. Aktuell hast du ${state.coins} Coins.`;
+  els.victoryText.innerHTML = `Belohnung: +${createCoinCostMarkup(state.rewardCoins)}. Aktuell: ${createCoinCostMarkup(state.coins)}.`;
   els.defeatText.textContent = state.message;
 
   renderShopOffers();
+  renderBoosterChoices();
   renderCards(els.playerCards, state.playerCards, false, { selectable: true });
   renderCards(els.dealerCards, state.dealerCards, true);
+  renderDamageCountOverlay();
   renderPreview();
   renderDeckPanel();
 }
@@ -1140,6 +1419,7 @@ els.debugWinButton.addEventListener("click", () => winCombat());
 els.debugCoinsButton.addEventListener("click", addDebugCoins);
 els.nextFightButton.addEventListener("click", startRound);
 els.shopNextFightButton.addEventListener("click", startRound);
+els.shopRerollButton.addEventListener("click", rerollShopOffers);
 els.continueToShopButton.addEventListener("click", continueToShop);
 els.restartRunButton.addEventListener("click", resetGame);
 els.resetButton.addEventListener("click", resetGame);

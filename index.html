@@ -35,7 +35,9 @@
             <strong id="dealerHpLabel">0/0</strong>
           </div>
           <div class="hud-pill coins">
-            <span>Coins</span>
+            <span class="coin-label" aria-label="Coins">
+              <img src="assets/icons/gold-coin-icon-png-11552728459kod1gljkts.png" alt="">
+            </span>
             <strong id="coinsLabel">0</strong>
           </div>
         </div>
@@ -51,7 +53,9 @@
                   <h2 id="dealerStatusLabel">Waiting</h2>
                 </div>
                 <div class="damage-box dealer-damage-box">
-                  <span>Nächster Angriff</span>
+                  <span class="damage-icon-label" aria-label="Nächster Angriff">
+                    <img src="assets/icons/damageicon.png" alt="">
+                  </span>
                   <strong id="dealerDamageLabel">0</strong>
                 </div>
                 <div class="hp-box">
@@ -70,7 +74,12 @@
                 <button id="playSelectedButton" class="control-button play">Spielen</button>
                 <button id="discardSelectedButton" class="control-button discard">Abwerfen</button>
                 <button id="debugWinButton" class="control-button debug">Test: Gewinn</button>
-                <button id="debugCoinsButton" class="control-button debug">+ Coins</button>
+                <button id="debugCoinsButton" class="control-button debug">
+                  +
+                  <span class="coin-cost">
+                    <img src="assets/icons/gold-coin-icon-png-11552728459kod1gljkts.png" alt="Coins">
+                  </span>
+                </button>
                 <button id="nextFightButton" class="control-button alt is-hidden">Nächster Kampf</button>
                 <button id="resetButton" class="control-button ghost">Reset</button>
               </div>
@@ -83,7 +92,9 @@
                   <h2 id="playerStatusLabel">Bereit</h2>
                 </div>
                 <div class="damage-box player-damage-box">
-                  <span>Dein Schaden</span>
+                  <span class="damage-icon-label" aria-label="Dein Schaden">
+                    <img src="assets/icons/damageicon.png" alt="">
+                  </span>
                   <strong id="playerDamageLabel">0</strong>
                 </div>
                 <div class="hp-box player-hp-box">
@@ -93,6 +104,7 @@
                   </div>
                 </div>
               </div>
+              <div id="damageCountOverlay" class="damage-count-overlay" aria-hidden="true"></div>
               <div id="playerCards" class="card-row"></div>
             </section>
           </div>
@@ -151,16 +163,27 @@
               <h2>Zwischenraum</h2>
             </div>
             <div class="shop-coins">
-              <span>Coins</span>
+              <span class="coin-label" aria-label="Coins">
+                <img src="assets/icons/gold-coin-icon-png-11552728459kod1gljkts.png" alt="">
+              </span>
               <strong id="shopCoinsLabel">0</strong>
             </div>
           </div>
 
-          <p class="shop-copy">Kaufe Spezialkarten für dein Deck. Am Anfang besteht dein Deck nur aus normalen Karten.</p>
+          <p class="shop-copy">Kaufe Booster für dein Deck. Jeder Booster enthält 3 zufällige Karten aus seiner Art.</p>
 
           <div id="shopOffers" class="shop-grid"></div>
 
+          <div id="boosterChoicePanel" class="booster-choice-panel is-hidden">
+            <div class="booster-choice-head">
+              <p class="eyebrow">Booster geÃ¶ffnet</p>
+              <h3 id="boosterChoiceTitle">WÃ¤hle 1 Karte</h3>
+            </div>
+            <div id="boosterChoices" class="booster-choice-grid"></div>
+          </div>
+
           <div class="button-row">
+            <button id="shopRerollButton" class="control-button reroll">Aktualisieren</button>
             <button id="shopNextFightButton" class="control-button alt">Nächster Kampf</button>
           </div>
         </div>
