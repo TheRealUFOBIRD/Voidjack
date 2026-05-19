@@ -232,12 +232,37 @@ h3 {
 }
 
 .hp-box {
-  width: min(260px, 44%);
+  width: min(340px, 48%);
+  min-width: 220px;
+  padding: 10px 12px 12px;
   display: grid;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 0.82rem;
+  gap: 8px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 143, 160, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 143, 160, 0.08), rgba(255, 255, 255, 0.025)),
+    rgba(0, 0, 0, 0.16);
+  color: var(--text);
+  font-size: 1.02rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
   text-align: right;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.player-hp-box {
+  border-color: rgba(148, 199, 255, 0.24);
+  background:
+    linear-gradient(180deg, rgba(148, 199, 255, 0.09), rgba(255, 255, 255, 0.025)),
+    rgba(0, 0, 0, 0.16);
+}
+
+.hp-box span {
+  font-size: 1.08rem;
+  line-height: 1;
 }
 
 .damage-box {
@@ -271,11 +296,16 @@ h3 {
 }
 
 .hp-bar {
-  height: 14px;
+  height: 28px;
   border-radius: 999px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.32);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.38), rgba(255, 255, 255, 0.04)),
+    rgba(0, 0, 0, 0.36);
+  border: 2px solid rgba(255, 255, 255, 0.13);
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, 0.34),
+    0 0 22px rgba(255, 78, 100, 0.12);
 }
 
 .hp-fill {
@@ -283,15 +313,21 @@ h3 {
   height: 100%;
   border-radius: inherit;
   background:
-    linear-gradient(90deg, #ff4e64, #ff8fa0);
-  box-shadow: 0 0 16px rgba(255, 78, 100, 0.42);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 45%),
+    linear-gradient(90deg, #9f0f2a, #ff344f 54%, #ff9baa);
+  box-shadow:
+    0 0 22px rgba(255, 78, 100, 0.58),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
   transition: width 220ms ease;
 }
 
 .player-hp-fill {
   background:
-    linear-gradient(90deg, #4aa3ff, #94c7ff);
-  box-shadow: 0 0 16px rgba(74, 163, 255, 0.42);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 45%),
+    linear-gradient(90deg, #1263c5, #4aa3ff 56%, #a8d8ff);
+  box-shadow:
+    0 0 22px rgba(74, 163, 255, 0.58),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .center-strip {
@@ -535,9 +571,11 @@ h3 {
 }
 
 .shop-card-preview {
-  min-height: 190px;
+  min-height: 220px;
+  padding: var(--card-type-h) 0 10px;
   display: grid;
   place-items: center;
+  overflow: visible;
 }
 
 .shop-card-preview .playing-card {
@@ -740,11 +778,11 @@ h3 {
 }
 
 .deck-window {
-  width: min(1040px, 100%);
+  width: min(1120px, 100%);
   max-height: min(820px, calc(100vh - 36px));
-  padding: clamp(20px, 4vw, 36px);
+  padding: clamp(18px, 3vw, 30px);
   display: grid;
-  gap: 18px;
+  gap: 12px;
   overflow: auto;
   border-radius: 28px;
   border: 1px solid rgba(148, 199, 255, 0.24);
@@ -765,44 +803,45 @@ h3 {
 
 .deck-head h2 {
   margin-top: 4px;
-  font-size: clamp(2rem, 5vw, 3.6rem);
-  letter-spacing: -0.04em;
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  letter-spacing: 0;
 }
 
 .deck-summary {
   color: var(--muted);
+  font-size: 0.88rem;
 }
 
 .deck-content {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 18px;
   align-items: start;
 }
 
 .deck-list {
   min-height: 0;
   max-height: 560px;
-  padding-right: 6px;
+  padding: var(--card-type-h) 6px 6px 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: 14px;
   overflow: auto;
 }
 
 .deck-list-item {
   min-width: 0;
-  padding: 10px;
+  padding: 12px 10px;
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  border-radius: 16px;
+  justify-items: center;
+  gap: 8px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.045);
+  background: rgba(255, 255, 255, 0.032);
   cursor: pointer;
   transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+  text-align: center;
 }
 
 .deck-list-item:hover,
@@ -814,49 +853,81 @@ h3 {
 }
 
 .deck-list-card {
-  width: 50px;
-  height: 70px;
+  width: 76px;
+  height: 140px;
+  padding-top: var(--card-type-h);
+  display: grid;
+  place-items: start center;
+  overflow: visible;
 }
 
 .deck-list-card .playing-card {
-  width: 50px;
-  height: 70px;
-  margin-bottom: 10px;
+  width: 68px;
+  height: 95px;
+  margin: 0;
 }
 
-.deck-list-card .card-type {
-  min-height: 10px;
-  font-size: 0;
+.deck-list-card .card-type,
+.deck-list-card .card-tier {
+  min-height: 14px;
+  font-size: 0.44rem;
+  letter-spacing: 0.04em;
 }
 
-.deck-list-item strong,
-.deck-list-item span {
+.deck-list-meta,
+.deck-list-meta strong,
+.deck-list-meta span {
   display: block;
+  min-width: 0;
+  width: 100%;
 }
 
-.deck-list-item span {
-  margin-top: 4px;
+.deck-list-meta strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.84rem;
+}
+
+.deck-list-meta span {
+  margin-top: 6px;
   color: var(--muted);
-  font-size: 0.86rem;
-  line-height: 1.35;
+  font-size: 0.68rem;
+  line-height: 1;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.deck-list-meta b {
+  padding: 3px 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.065);
+  color: var(--muted);
+  font-size: inherit;
+  line-height: 1;
 }
 
 .deck-hover-info {
   position: sticky;
   top: 0;
   min-width: 0;
-  padding: 14px;
+  padding: 18px 14px 14px;
   display: grid;
   gap: 10px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.045);
+  border-radius: 10px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.028);
+  overflow: visible;
 }
 
 .deck-preview-slot {
-  min-height: 360px;
+  min-height: 390px;
+  padding: var(--card-type-h) 0 10px;
   display: grid;
   place-items: center;
+  overflow: visible;
 }
 
 .deck-preview-slot .playing-card {
@@ -866,7 +937,7 @@ h3 {
 
 .card-row {
   min-height: 214px;
-  padding: 18px 4px 34px;
+  padding: calc(var(--card-type-h) + 14px) 4px 34px;
   display: flex;
   gap: 12px;
   align-items: flex-start;
@@ -880,6 +951,7 @@ h3 {
   position: relative;
   flex: 0 0 auto;
   margin-bottom: var(--card-type-h);
+  margin-top: var(--card-type-h);
   border: 0;
   border-radius: 8px;
   overflow: visible;
@@ -1014,6 +1086,29 @@ h3 {
   line-height: 1;
   text-transform: uppercase;
   pointer-events: none;
+}
+
+.card-tier {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  min-height: var(--card-type-h);
+  display: grid;
+  place-items: center;
+  border-radius: 7px 7px 0 0;
+  background:
+    linear-gradient(90deg, rgba(245, 241, 231, 0.94), rgba(227, 193, 111, 0.96));
+  color: #19140a;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  pointer-events: none;
+  box-shadow:
+    0 0 16px rgba(227, 193, 111, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.52);
 }
 
 .card-normal .card-type {
@@ -1228,9 +1323,11 @@ h3 {
 }
 
 .preview-slot {
-  min-height: 360px;
+  min-height: 390px;
+  padding-top: var(--card-type-h);
   display: grid;
   place-items: center;
+  overflow: visible;
 }
 
 .preview-slot .playing-card {
@@ -1305,7 +1402,8 @@ h3 {
 
   .dealer-lane .hp-box,
   .player-lane .player-hp-box {
-    width: min(260px, 100%);
+    width: min(340px, 100%);
+    min-width: 0;
     justify-self: center;
     text-align: center;
   }

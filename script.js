@@ -86,6 +86,8 @@ const MAX_CARDS_PER_TURN = 3;
 const DEALER_HAND_SIZE = 2;
 const SHOP_OFFER_COUNT = 3;
 const SHOP_BASE_CARD_COST = 14;
+const CARD_TIER_MIN = 1;
+const CARD_TIER_MAX = 10;
 const STARTING_VOLUME = 20;
 const CARD_EXIT_ANIMATION_MS = 360;
 const RESULT_EFFECT_MS = 1100;
@@ -117,7 +119,9 @@ const state = {
   rewardCoins: WIN_REWARD_COINS,
   message: "Ziehe bis 7 Karten. Spiele bis zu 3 Karten pro Zug.",
   hoveredTemplateId: null,
+  hoveredTier: CARD_TIER_MIN,
   deckHoveredTemplateId: null,
+  deckHoveredTier: CARD_TIER_MIN,
   enteringCardIds: [],
   animatingCardIds: [],
   cardAnimationType: null,
@@ -300,6 +304,20 @@ function buildCardDescription(rankId, value, type) {
   return `${damageText} Art: ${type.label}. ${type.description}`;
 }
 
+function getCardDisplayName(template, tier = CARD_TIER_MIN) {
+  return tier > CARD_TIER_MIN
+    ? `${template.displayName} +${tier}`
+    : template.displayName;
+}
+
+function getCardDescription(template, tier = CARD_TIER_MIN) {
+  const tierText = tier > CARD_TIER_MIN
+    ? ` Stufe ${tier}/10.`
+    : "";
+
+  return `${template.description}${tierText}`;
+}
+
 function shuffle(array) {
   const copy = [...array];
   for (let i = copy.length - 1; i > 0; i -= 1) {
@@ -310,7 +328,9 @@ function shuffle(array) {
 }
 
 function buildStartingDeck() {
-  return shuffle(getNormalTemplateIds()).slice(0, STARTING_DECK_SIZE);
+  return shuffle(getNormalTemplateIds())
+    .slice(0, STARTING_DECK_SIZE)
+    .map((templateId) => createRunDeckEntry(templateId));
 }
 
 function getNormalTemplateIds() {
@@ -322,14 +342,42 @@ function getSpecialTemplateIds() {
 }
 
 function buildShopOffers() {
-  return shuffle(getSpecialTemplateIds()).slice(0, SHOP_OFFER_COUNT).map((templateId) => ({
-    templateId,
-    cost: getShopCardCost(templateId),
-    isSold: false
-  }));
+  return Array.from({ length: SHOP_OFFER_COUNT }, () => {
+    const isSpecialOffer = Math.random() < getShopSpecialChance();
+    const templateIds = isSpecialOffer ? getSpecialTemplateIds() : getNormalTemplateIds();
+    const templateId = templateIds[Math.floor(Math.random() * templateIds.length)];
+    const tier = isSpecialOffer ? rollShopCardTier() : CARD_TIER_MIN;
+
+    return {
+      templateId,
+      tier,
+      cost: getShopCardCost(templateId, tier),
+      isSold: false
+    };
+  });
 }
 
-function getShopCardCost(templateId) {
+function getShopSpecialChance() {
+  return Math.min(0.72, 0.14 + ((state.round - 1) * 0.07));
+}
+
+function rollShopCardTier() {
+  let tier = CARD_TIER_MIN;
+  const pressure = Math.min(0.86, 0.16 + ((state.round - 1) * 0.065));
+
+  for (let nextTier = 2; nextTier <= CARD_TIER_MAX; nextTier += 1) {
+    const tierDifficulty = 1 - ((nextTier - 2) * 0.085);
+    if (Math.random() < pressure * Math.max(0.12, tierDifficulty)) {
+      tier = nextTier;
+    } else {
+      break;
+    }
+  }
+
+  return tier;
+}
+
+function getShopCardCost(templateId, tier = CARD_TIER_MIN) {
   const template = CARD_LIBRARY[templateId];
   const typePremiums = {
     golden: 6,
@@ -337,19 +385,36 @@ function getShopCardCost(templateId) {
     void: 4,
     holy: 4
   };
-  return SHOP_BASE_CARD_COST + (state.round * 2) + (typePremiums[template.typeId] || 0);
+  const specialPremium = template.isSpecial ? 4 : 0;
+  return SHOP_BASE_CARD_COST + (state.round * 2) + specialPremium + ((tier - 1) * 3) + (typePremiums[template.typeId] || 0);
 }
 
 function buildCombatDeck() {
   return shuffle(state.runDeck.map(createDeckCard));
 }
 
-function createDeckCard(templateId) {
+function createRunDeckEntry(templateId, tier = CARD_TIER_MIN) {
+  return {
+    templateId,
+    tier: clampCardTier(tier)
+  };
+}
+
+function createDeckCard(deckEntry) {
+  const entry = typeof deckEntry === "string"
+    ? createRunDeckEntry(deckEntry)
+    : deckEntry;
+
   return {
     instanceId: `card_${Math.random().toString(36).slice(2, 10)}`,
-    templateId,
+    templateId: entry.templateId,
+    tier: clampCardTier(entry.tier),
     hidden: false
   };
+}
+
+function clampCardTier(tier) {
+  return Math.max(CARD_TIER_MIN, Math.min(CARD_TIER_MAX, Number(tier) || CARD_TIER_MIN));
 }
 
 function getHandPower(cards, revealHidden = true) {
@@ -392,7 +457,7 @@ function drawPlayerHand(size = MAX_HAND_SIZE) {
 
 function createDealerCard() {
   const templateIds = getNormalTemplateIds();
-  return createDeckCard(templateIds[Math.floor(Math.random() * templateIds.length)]);
+  return createDeckCard(createRunDeckEntry(templateIds[Math.floor(Math.random() * templateIds.length)]));
 }
 
 function drawDealerHand() {
@@ -403,9 +468,7 @@ function drawDealerHand() {
 
 function startRound() {
   state.round += 1;
-  if (state.player.hp <= 0) {
-    state.player.hp = state.player.maxHp;
-  }
+  state.player.hp = state.player.maxHp;
   state.drawPile = buildCombatDeck();
   state.discardPile = [];
   state.playerCards = [];
@@ -424,6 +487,7 @@ function startRound() {
   clearEnteringCardsSoon();
 
   state.hoveredTemplateId = state.playerCards[0]?.templateId || null;
+  state.hoveredTier = state.playerCards[0]?.tier || CARD_TIER_MIN;
   render();
 }
 
@@ -656,9 +720,9 @@ function buyShopOffer(index) {
 
   const template = CARD_LIBRARY[offer.templateId];
   state.coins -= offer.cost;
-  state.runDeck.push(offer.templateId);
+  state.runDeck.push(createRunDeckEntry(offer.templateId, offer.tier));
   offer.isSold = true;
-  state.message = `${template.displayName} gekauft und deinem Deck hinzugefügt.`;
+  state.message = `${getCardDisplayName(template, offer.tier)} gekauft und deinem Deck hinzugefügt.`;
   render();
 }
 
@@ -674,7 +738,9 @@ function getCurrentDeckCards() {
 
 function openDeckPanel() {
   state.isDeckOpen = true;
-  state.deckHoveredTemplateId = getCurrentDeckCards()[0]?.templateId || null;
+  const firstCard = getCurrentDeckCards()[0];
+  state.deckHoveredTemplateId = firstCard?.templateId || null;
+  state.deckHoveredTier = firstCard?.tier || CARD_TIER_MIN;
   renderDeckPanel();
 }
 
@@ -705,6 +771,7 @@ function toggleCardSelection(card) {
 function createCardElement(template, options = {}) {
   const article = document.createElement("article");
   article.className = "playing-card";
+  const tier = clampCardTier(options.tier);
 
   if (options.hidden) {
     article.classList.add("card-hidden");
@@ -734,6 +801,7 @@ function createCardElement(template, options = {}) {
   }
   article.innerHTML = `
     <img src="${template.sprite}" alt="${template.displayName}" draggable="false">
+    ${tier > CARD_TIER_MIN ? `<div class="card-tier">STUFE ${tier}</div>` : ""}
     <div class="card-type">${template.typeLabel}</div>
   `;
 
@@ -750,6 +818,7 @@ function createCardElement(template, options = {}) {
   if (options.interactive !== false) {
     article.addEventListener("pointerenter", () => {
       state.hoveredTemplateId = template.id;
+      state.hoveredTier = tier;
       renderPreview();
     });
 
@@ -787,6 +856,7 @@ function renderCards(node, cards, hideHidden, options = {}) {
       card,
       selectable: options.selectable,
       selected: state.selectedCardIds.includes(card.instanceId),
+      tier: card.tier,
       isEntering: state.enteringCardIds.includes(card.instanceId),
       animationType: state.animatingCardIds.includes(card.instanceId)
         ? state.cardAnimationType
@@ -799,6 +869,7 @@ function renderPreview() {
   els.previewSlot.innerHTML = "";
   const templateId = state.hoveredTemplateId;
   const template = templateId ? CARD_LIBRARY[templateId] : null;
+  const tier = state.hoveredTier || CARD_TIER_MIN;
 
   if (!template) {
     els.previewTitle.textContent = "Hover Card";
@@ -806,36 +877,38 @@ function renderPreview() {
     return;
   }
 
-  els.previewSlot.appendChild(createCardElement(template, { interactive: false }));
-  els.previewTitle.textContent = template.displayName;
-  els.previewText.textContent = template.description;
+  els.previewSlot.appendChild(createCardElement(template, { interactive: false, tier }));
+  els.previewTitle.textContent = getCardDisplayName(template, tier);
+  els.previewText.textContent = getCardDescription(template, tier);
 }
 
 function renderDeckPreview() {
   els.deckPreviewSlot.innerHTML = "";
   const templateId = state.deckHoveredTemplateId;
   const template = templateId ? CARD_LIBRARY[templateId] : null;
+  const tier = state.deckHoveredTier || CARD_TIER_MIN;
 
   if (!template) {
     els.deckPreviewTitle.textContent = "Hover Card";
-    els.deckPreviewText.textContent = "Hover über eine Karte, um Details zu sehen.";
+    els.deckPreviewText.textContent = "";
     return;
   }
 
-  els.deckPreviewSlot.appendChild(createCardElement(template, { interactive: false }));
-  els.deckPreviewTitle.textContent = template.displayName;
-  els.deckPreviewText.textContent = template.description;
+  els.deckPreviewSlot.appendChild(createCardElement(template, { interactive: false, tier }));
+  els.deckPreviewTitle.textContent = getCardDisplayName(template, tier);
+  els.deckPreviewText.textContent = `${template.typeLabel}${tier > CARD_TIER_MIN ? ` · Stufe ${tier}` : ""} · ${template.value} Schaden`;
 }
 
 function renderDeckPanel() {
   const cards = getCurrentDeckCards();
 
   els.deckPanel.classList.toggle("is-hidden", !state.isDeckOpen);
-  els.deckSummary.textContent = `${state.drawPile.length} im Deck, ${state.playerCards.length} auf der Hand, ${state.discardPile.length} in der Ablage`;
+  els.deckSummary.textContent = `${state.drawPile.length} Deck · ${state.playerCards.length} Hand · ${state.discardPile.length} Ablage`;
   els.deckList.innerHTML = "";
 
-  if (!cards.some((card) => card.templateId === state.deckHoveredTemplateId)) {
+  if (!cards.some((card) => card.templateId === state.deckHoveredTemplateId && card.tier === state.deckHoveredTier)) {
     state.deckHoveredTemplateId = cards[0]?.templateId || null;
+    state.deckHoveredTier = cards[0]?.tier || CARD_TIER_MIN;
   }
 
   cards.forEach((card) => {
@@ -846,22 +919,29 @@ function renderDeckPanel() {
     item.setAttribute("tabindex", "0");
     item.innerHTML = `
       <div class="deck-list-card"></div>
-      <div>
-        <strong>${template.displayName}</strong>
-        <span>${template.typeLabel} - ${template.value} Schaden - ${card.zone}</span>
+      <div class="deck-list-meta">
+        <strong>${getCardDisplayName(template, card.tier)}</strong>
+        <span>
+          <b>${template.typeLabel}</b>
+          ${card.tier > CARD_TIER_MIN ? `<b>STUFE ${card.tier}</b>` : ""}
+          <b>${template.value}</b>
+        </span>
       </div>
     `;
-    item.querySelector(".deck-list-card").appendChild(createCardElement(template, { interactive: false }));
+    item.querySelector(".deck-list-card").appendChild(createCardElement(template, { interactive: false, tier: card.tier }));
     item.addEventListener("pointerenter", () => {
       state.deckHoveredTemplateId = template.id;
+      state.deckHoveredTier = card.tier;
       renderDeckPreview();
     });
     item.addEventListener("focus", () => {
       state.deckHoveredTemplateId = template.id;
+      state.deckHoveredTier = card.tier;
       renderDeckPreview();
     });
     item.addEventListener("click", () => {
       state.deckHoveredTemplateId = template.id;
+      state.deckHoveredTier = card.tier;
       renderDeckPreview();
     });
     els.deckList.appendChild(item);
@@ -880,15 +960,15 @@ function renderShopOffers() {
     item.innerHTML = `
       <div class="shop-card-preview"></div>
       <div class="shop-card-copy">
-        <strong>${template.displayName}</strong>
-        <span>${template.typeLabel} - ${template.value} Schaden</span>
+        <strong>${getCardDisplayName(template, offer.tier)}</strong>
+        <span>${template.typeLabel}${offer.tier > CARD_TIER_MIN ? ` - Stufe ${offer.tier}` : ""} - ${template.value} Schaden</span>
       </div>
       <button class="control-button ${offer.isSold ? "ghost" : "alt"}" type="button">
         ${offer.isSold ? "Gekauft" : `${offer.cost} Coins`}
       </button>
     `;
 
-    item.querySelector(".shop-card-preview").appendChild(createCardElement(template, { interactive: false }));
+    item.querySelector(".shop-card-preview").appendChild(createCardElement(template, { interactive: false, tier: offer.tier }));
     const buyButton = item.querySelector("button");
     buyButton.disabled = offer.isSold || state.coins < offer.cost;
     buyButton.addEventListener("click", () => buyShopOffer(index));
