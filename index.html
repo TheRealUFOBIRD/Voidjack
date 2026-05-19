@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>VOIDJACK</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>VOIDJACK</h1>
+        </div>
+
+        <div class="hud">
+          <div class="hud-pill">
+            <span>Runde</span>
+            <strong id="roundLabel">1</strong>
+          </div>
+          <div class="hud-pill">
+            <span>Deck</span>
+            <strong id="deckCountLabel">0</strong>
+          </div>
+          <div class="hud-pill player">
+            <span>Spieler HP</span>
+            <strong id="playerHpLabel">0/0</strong>
+          </div>
+          <div class="hud-pill player">
+            <span>Auswahl</span>
+            <strong id="playerTotalLabel">0</strong>
+          </div>
+          <div class="hud-pill dealer">
+            <span>Dealer HP</span>
+            <strong id="dealerHpLabel">0/0</strong>
+          </div>
+          <div class="hud-pill coins">
+            <span>Coins</span>
+            <strong id="coinsLabel">0</strong>
+          </div>
+        </div>
+      </header>
+
+      <main class="table-wrap">
+        <section class="table-panel">
+          <div class="felt">
+            <section class="lane dealer-lane">
+              <div class="lane-head">
+                <div>
+                  <p class="eyebrow">Dealer</p>
+                  <h2 id="dealerStatusLabel">Waiting</h2>
+                </div>
+                <div class="damage-box dealer-damage-box">
+                  <span>Nächster Angriff</span>
+                  <strong id="dealerDamageLabel">0</strong>
+                </div>
+                <div class="hp-box">
+                  <span id="dealerHpText">0/0 HP</span>
+                  <div class="hp-bar" aria-label="Dealer HP">
+                    <div id="dealerHpFill" class="hp-fill"></div>
+                  </div>
+                </div>
+              </div>
+              <div id="dealerCards" class="card-row"></div>
+            </section>
+
+            <section class="center-strip">
+              <div id="messageBanner" class="message-banner">Ziehe bis 7 Karten. Spiele bis zu 3 Karten pro Zug.</div>
+              <div class="button-row">
+                <button id="playSelectedButton" class="control-button play">Spielen</button>
+                <button id="discardSelectedButton" class="control-button discard">Abwerfen</button>
+                <button id="debugWinButton" class="control-button debug">Test: Gewinn</button>
+                <button id="debugCoinsButton" class="control-button debug">+ Coins</button>
+                <button id="nextFightButton" class="control-button alt is-hidden">Nächster Kampf</button>
+                <button id="newRoundButton" class="control-button ghost">Neuer Kampf</button>
+                <button id="resetButton" class="control-button ghost">Reset</button>
+              </div>
+            </section>
+
+            <section class="lane player-lane">
+              <div class="lane-head">
+                <div>
+                  <p class="eyebrow">Spieler</p>
+                  <h2 id="playerStatusLabel">Bereit</h2>
+                </div>
+                <div class="damage-box player-damage-box">
+                  <span>Dein Schaden</span>
+                  <strong id="playerDamageLabel">0</strong>
+                </div>
+                <div class="hp-box player-hp-box">
+                  <span id="playerHpText">0/0 HP</span>
+                  <div class="hp-bar player-hp-bar" aria-label="Spieler HP">
+                    <div id="playerHpFill" class="hp-fill player-hp-fill"></div>
+                  </div>
+                </div>
+              </div>
+              <div id="playerCards" class="card-row"></div>
+            </section>
+          </div>
+        </section>
+
+      <aside class="side-panel">
+          <section class="audio-panel" aria-label="Soundtrack Steuerung">
+            <div class="audio-head">
+              <div>
+                <p class="eyebrow">Soundtrack</p>
+                <h3>At the Deck</h3>
+              </div>
+              <strong id="volumeValueLabel">20%</strong>
+            </div>
+            <label class="volume-control" for="volumeSlider">
+              <span>Lautstärke</span>
+              <input id="volumeSlider" type="range" min="0" max="100" value="20" aria-label="Soundtrack Lautstärke">
+            </label>
+          </section>
+
+          <section class="preview-panel">
+            <p class="eyebrow">Kartenansicht</p>
+            <div id="previewSlot" class="preview-slot"></div>
+            <h3 id="previewTitle">Hover Card</h3>
+            <p id="previewText" class="preview-text">Hover über eine Karte, um Details zu sehen.</p>
+          </section>
+
+          <section class="info-panel">
+            <div class="info-row">
+              <span>Deine Karten</span>
+              <strong id="playerCardCountLabel">0</strong>
+            </div>
+            <div class="info-row">
+              <span>Dealer Karten</span>
+              <strong id="dealerCardCountLabel">0</strong>
+            </div>
+            <div class="info-row">
+              <span>Phase</span>
+              <strong id="phaseLabel">Kampf</strong>
+            </div>
+            <div class="info-row">
+              <span>Reward</span>
+              <strong id="rewardLabel">0</strong>
+            </div>
+          </section>
+
+          <button id="deckButton" class="deck-button">Deck ansehen</button>
+        </aside>
+      </main>
+
+      <section id="shopPanel" class="shop-screen is-hidden">
+        <div class="shop-window">
+          <div class="shop-head">
+            <div>
+              <p class="eyebrow">Shop</p>
+              <h2>Zwischenraum</h2>
+            </div>
+            <div class="shop-coins">
+              <span>Coins</span>
+              <strong id="shopCoinsLabel">0</strong>
+            </div>
+          </div>
+
+          <p class="shop-copy">Kaufe Spezialkarten für dein Deck. Am Anfang besteht dein Deck nur aus normalen Karten.</p>
+
+          <div id="shopOffers" class="shop-grid"></div>
+
+          <div class="button-row">
+            <button id="shopNextFightButton" class="control-button alt">Nächster Kampf</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="victoryPanel" class="result-screen victory-screen is-hidden">
+        <div class="result-window">
+          <h2>SIEG</h2>
+          <p id="victoryText" class="result-copy">Du hast gewonnen.</p>
+          <div class="button-row">
+            <button id="continueToShopButton" class="control-button alt">Weiter zum Shop</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="defeatPanel" class="result-screen defeat-screen is-hidden">
+        <div class="result-window">
+          <h2>NIEDERLAGE</h2>
+          <p id="defeatText" class="result-copy">Du wurdest besiegt.</p>
+          <div class="button-row">
+            <button id="restartRunButton" class="control-button alt">Neu starten</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="deckPanel" class="deck-screen is-hidden">
+        <div class="deck-window">
+          <div class="deck-head">
+            <div>
+              <p class="eyebrow">Aktuelles Deck</p>
+              <h2>Dein Deck</h2>
+            </div>
+            <button id="closeDeckButton" class="control-button ghost">Schließen</button>
+          </div>
+
+          <p id="deckSummary" class="deck-summary">0 Karten</p>
+          <div class="deck-content">
+            <div id="deckList" class="deck-list"></div>
+            <aside class="deck-hover-info" aria-label="Karteninfo im Deckfenster">
+              <p class="eyebrow">Karteninfo</p>
+              <div id="deckPreviewSlot" class="deck-preview-slot"></div>
+              <h3 id="deckPreviewTitle">Hover Card</h3>
+              <p id="deckPreviewText" class="preview-text">Hover über eine Karte, um Details zu sehen.</p>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <div id="resultEffect" class="result-effect is-hidden" aria-hidden="true">
+        <div class="result-burst"></div>
+        <div id="resultEffectText" class="result-effect-text"></div>
+      </div>
+    </div>
+
+    <audio id="soundtrackAudio" src="assets/soundtrack/At the Deck.mp3" preload="auto" loop></audio>
+    <script src="script.js"></script>
+  </body>
+</html>
