@@ -323,6 +323,7 @@ const CARD_DEAL_SOUND_SRC = "assets/sounds/card_deal.wav";
 const BUTTON_CLICK_SOUND_SRC = "assets/sounds/buttonklick.mp3";
 const CARD_SELECT_SOUND_SRC = "assets/sounds/cardselect.mp3";
 const BOOSTER_OPEN_SOUND_SRC = "assets/sounds/boosteropen.mp3";
+const VICTORY_SOUND_SRC = "assets/sounds/sieg.mp3";
 const COIN_ICON_SRC = "assets/icons/gold-coin-icon-png-11552728459kod1gljkts.png";
 const SAVEGAME_VERSION = 1;
 
@@ -465,6 +466,7 @@ const els = {
   startGameButton: document.getElementById("startGameButton"),
   settingsMenuButton: document.getElementById("settingsMenuButton"),
   profileMenuButton: document.getElementById("profileMenuButton"),
+  howToPlayButton: document.getElementById("howToPlayButton"),
   settingsMenuPanel: document.getElementById("settingsMenuPanel"),
   closeSettingsButton: document.getElementById("closeSettingsButton"),
   musicToggle: document.getElementById("musicToggle"),
@@ -478,7 +480,12 @@ const els = {
   downloadProfileButton: document.getElementById("downloadProfileButton"),
   uploadProfileButton: document.getElementById("uploadProfileButton"),
   uploadProfileInput: document.getElementById("uploadProfileInput"),
-  profileStatusText: document.getElementById("profileStatusText")
+  profileStatusText: document.getElementById("profileStatusText"),
+  howToPlayPanel: document.getElementById("howToPlayPanel"),
+  closeHowToPlayButton: document.getElementById("closeHowToPlayButton"),
+  howToCombosButton: document.getElementById("howToCombosButton"),
+  mainMenuCombosPanel: document.getElementById("mainMenuCombosPanel"),
+  closeMainMenuCombosButton: document.getElementById("closeMainMenuCombosButton")
 };
 
 document.body.insertBefore(els.settingsMenuPanel, els.soundtrackAudio);
@@ -564,14 +571,34 @@ function updateProfileUi(message = "") {
   }
 }
 
+function updateIdleSwayState() {
+  const isReadingUi = !els.mainMenu.classList.contains("is-hidden")
+    || !els.settingsMenuPanel.classList.contains("is-hidden")
+    || !els.profileMenuPanel.classList.contains("is-hidden")
+    || !els.howToPlayPanel.classList.contains("is-hidden")
+    || !els.mainMenuCombosPanel.classList.contains("is-hidden")
+    || state.phase === "shop"
+    || state.phase === "victory"
+    || state.phase === "defeat"
+    || state.isDeckOpen
+    || state.isCombosOpen
+    || state.activeTrashItemSlotIndex !== null;
+
+  document.body.classList.toggle("is-ui-reading", isReadingUi);
+}
+
 function showMainMenu() {
   els.mainMenu.classList.remove("is-hidden");
+  updateIdleSwayState();
 }
 
 function hideMainMenu() {
   els.mainMenu.classList.add("is-hidden");
   els.settingsMenuPanel.classList.add("is-hidden");
   els.profileMenuPanel.classList.add("is-hidden");
+  els.howToPlayPanel.classList.add("is-hidden");
+  els.mainMenuCombosPanel.classList.add("is-hidden");
+  updateIdleSwayState();
 }
 
 function closeOverlayWindows(options = {}) {
@@ -585,6 +612,12 @@ function closeOverlayWindows(options = {}) {
   }
   if (!options.keepProfile) {
     els.profileMenuPanel.classList.add("is-hidden");
+  }
+  if (!options.keepHowTo) {
+    els.howToPlayPanel.classList.add("is-hidden");
+  }
+  if (!options.keepMenuCombos) {
+    els.mainMenuCombosPanel.classList.add("is-hidden");
   }
 }
 
@@ -610,6 +643,20 @@ function openProfileMenu() {
   els.profileMenuPanel.classList.remove("is-hidden");
   updateProfileUi();
   render();
+}
+
+function openHowToPlayMenu() {
+  closeOverlayWindows({ keepHowTo: true });
+  els.howToPlayPanel.classList.remove("is-hidden");
+  render();
+}
+
+function openMainMenuCombos() {
+  closeOverlayWindows({ keepMenuCombos: true });
+  els.mainMenuCombosPanel.classList.remove("is-hidden");
+  renderComboRulesList(els.mainMenuCombosPanel);
+  renderThemeCombosList(els.mainMenuCombosPanel);
+  updateIdleSwayState();
 }
 
 function createProfile() {
@@ -910,6 +957,18 @@ function playBoosterOpenSound() {
   sound.volume = Math.max(1, Math.min(100, BOOSTER_OPEN_VOLUME)) / 100;
   sound.play().catch(() => {
     // Booster-Sounds duerfen erst nach einer Nutzerinteraktion starten.
+  });
+}
+
+function playVictorySound() {
+  if (!audioSettings.effectsEnabled) {
+    return;
+  }
+
+  const sound = new Audio(VICTORY_SOUND_SRC);
+  sound.volume = 0.24;
+  sound.play().catch(() => {
+    // Sieg-Sounds duerfen erst nach einer Nutzerinteraktion starten.
   });
 }
 
@@ -1996,6 +2055,7 @@ function winCombat(message = `Gewonnen! +${state.rewardCoins} Münzen.`) {
   state.message = message;
   state.resultEffect = "victory";
   state.isActionLocked = true;
+  playVictorySound();
   triggerScreenShake();
   render();
 
@@ -2215,6 +2275,7 @@ function openDeckPanel() {
 function closeDeckPanel() {
   state.isDeckOpen = false;
   renderDeckPanel();
+  updateIdleSwayState();
 }
 
 function openCombosPanel() {
@@ -2231,6 +2292,7 @@ function openCombosPanel() {
 function closeCombosPanel() {
   state.isCombosOpen = false;
   renderCombosPanel();
+  updateIdleSwayState();
 }
 
 function openTrashItem(slotIndex) {
@@ -2555,8 +2617,8 @@ function createComboStatMarkup(stats) {
     .join("");
 }
 
-function renderComboRulesList() {
-  const comboRulesList = els.combosPanel.querySelector(".combos-grid");
+function renderComboRulesList(root = els.combosPanel) {
+  const comboRulesList = root.querySelector(".combos-grid");
   comboRulesList.innerHTML = getComboRuleDefinitions()
     .map((rule) => `
       <article class="combo-info-card ${rule.title === "Thema" ? "combo-theme" : "combo-standard"}">
@@ -2574,8 +2636,8 @@ function renderComboRulesList() {
     .join("");
 }
 
-function renderThemeCombosList() {
-  const themeCombosList = els.combosPanel.querySelector(".theme-combo-list");
+function renderThemeCombosList(root = els.combosPanel) {
+  const themeCombosList = root.querySelector(".theme-combo-list");
   themeCombosList.innerHTML = SPECIAL_CARD_TYPE_SEQUENCE
     .filter((typeId) => THEME_EFFECT_CONFIG[typeId])
     .map((typeId) => {
@@ -2925,6 +2987,7 @@ function render() {
       : "";
   els.victoryText.innerHTML = `Belohnung: +${createCoinCostMarkup(state.rewardCoins)}. Aktuell: ${createCoinCostMarkup(state.coins)}.`;
   els.defeatText.textContent = state.message;
+  updateIdleSwayState();
 
   renderShopOffers();
   renderBoosterChoices();
@@ -2970,11 +3033,27 @@ els.cancelTrashItemButton.addEventListener("click", closeTrashItemPanel);
 els.startGameButton.addEventListener("click", startGameFromMenu);
 els.settingsMenuButton.addEventListener("click", openSettingsMenu);
 els.profileMenuButton.addEventListener("click", openProfileMenu);
-els.closeSettingsButton.addEventListener("click", () => els.settingsMenuPanel.classList.add("is-hidden"));
+els.howToPlayButton.addEventListener("click", openHowToPlayMenu);
+els.howToCombosButton.addEventListener("click", openMainMenuCombos);
+els.closeHowToPlayButton.addEventListener("click", () => {
+  els.howToPlayPanel.classList.add("is-hidden");
+  updateIdleSwayState();
+});
+els.closeMainMenuCombosButton.addEventListener("click", () => {
+  els.mainMenuCombosPanel.classList.add("is-hidden");
+  updateIdleSwayState();
+});
+els.closeSettingsButton.addEventListener("click", () => {
+  els.settingsMenuPanel.classList.add("is-hidden");
+  updateIdleSwayState();
+});
 els.musicToggle.addEventListener("change", (event) => setMusicEnabled(event.target.checked));
 els.effectsToggle.addEventListener("change", (event) => setEffectsEnabled(event.target.checked));
 els.shakeToggle.addEventListener("change", (event) => setShakeEnabled(event.target.checked));
-els.closeProfileButton.addEventListener("click", () => els.profileMenuPanel.classList.add("is-hidden"));
+els.closeProfileButton.addEventListener("click", () => {
+  els.profileMenuPanel.classList.add("is-hidden");
+  updateIdleSwayState();
+});
 els.createProfileButton.addEventListener("click", createProfile);
 els.downloadProfileButton.addEventListener("click", downloadProfileSave);
 els.uploadProfileButton.addEventListener("click", () => els.uploadProfileInput.click());

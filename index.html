@@ -367,6 +367,7 @@
           <button id="startGameButton" class="control-button alt">START</button>
           <button id="settingsMenuButton" class="control-button ghost">EINSTELLUNGEN</button>
           <button id="profileMenuButton" class="control-button play">PROFIL</button>
+          <button id="howToPlayButton" class="control-button reroll">Wie wird gespielt?</button>
         </div>
       </div>
 
@@ -410,6 +411,49 @@
           <input id="uploadProfileInput" class="is-hidden" type="file" accept="application/json,.json">
         </div>
         <p id="profileStatusText" class="profile-status-text">Erstelle ein Profil oder lade ein Savegame.</p>
+      </div>
+
+      <div id="howToPlayPanel" class="menu-dialog how-to-dialog is-hidden" aria-label="Wie wird gespielt">
+        <div class="menu-dialog-head">
+          <h2>WIE WIRD GESPIELT?</h2>
+          <button id="closeHowToPlayButton" class="control-button close-deck-button" aria-label="Anleitung schließen">X</button>
+        </div>
+        <div class="how-to-grid">
+          <article class="how-to-card">
+            <b>1</b>
+            <strong>Karten wählen</strong>
+            <span>Wähle bis zu 3 Handkarten aus. Ihre Werte werden zu deinem Angriff addiert.</span>
+          </article>
+          <article class="how-to-card">
+            <b>2</b>
+            <strong>Spielen</strong>
+            <span>Mit Spielen greifst du den Dealer an. Danach kontert der Dealer mit seinem sichtbaren Schaden.</span>
+          </article>
+          <article class="how-to-card">
+            <b>3</b>
+            <strong>Abwerfen</strong>
+            <span>Wenn deine Hand schlecht ist, wirf Karten ab und ziehe neue Karten nach.</span>
+          </article>
+          <article class="how-to-card">
+            <b>4</b>
+            <strong>Deck verbessern</strong>
+            <span>Nach Siegen kaufst du Booster und Items, um dein Deck stärker und gezielter zu machen.</span>
+          </article>
+        </div>
+        <p class="menu-dialog-copy">Combos können gleichzeitig aktiv sein. Zum Beispiel zählt ein Drilling mit gleichem Spezialtyp auch als Thema-Combo.</p>
+        <div class="profile-actions">
+          <button id="howToCombosButton" class="control-button play">COMBOS</button>
+        </div>
+      </div>
+
+      <div id="mainMenuCombosPanel" class="menu-dialog menu-combos-dialog is-hidden" aria-label="Combos">
+        <div class="menu-dialog-head">
+          <h2>COMBOS</h2>
+          <button id="closeMainMenuCombosButton" class="control-button close-deck-button" aria-label="Combos schließen">X</button>
+        </div>
+        <p class="menu-dialog-copy">Alle Combo-Werte kommen direkt aus den aktuellen Spielregeln.</p>
+        <div class="combos-grid"></div>
+        <div class="theme-combo-list"></div>
       </div>
     </section>
 

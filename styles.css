@@ -67,6 +67,16 @@ body.screen-shake .deck-window {
   animation: screenShake 280ms cubic-bezier(0.2, 0.9, 0.2, 1);
 }
 
+body.is-ui-reading .topbar,
+body.is-ui-reading .table-wrap,
+body.is-ui-reading .shop-window,
+body.is-ui-reading .result-window,
+body.is-ui-reading .deck-window {
+  animation: none;
+  transform: none;
+  will-change: auto;
+}
+
 .topbar,
 .table-panel,
 .side-panel section,
@@ -1051,6 +1061,10 @@ button.inventory-slot:focus-visible {
   gap: 14px;
 }
 
+.profile-actions {
+  justify-self: center;
+}
+
 .main-menu-actions .control-button,
 .profile-actions .control-button {
   width: 100%;
@@ -1083,6 +1097,15 @@ button.inventory-slot:focus-visible {
   width: min(760px, calc(100vw - 28px));
 }
 
+.how-to-dialog,
+.menu-combos-dialog {
+  width: min(900px, calc(100vw - 28px));
+}
+
+.menu-combos-dialog {
+  width: min(1180px, calc(100vw - 28px));
+}
+
 .menu-dialog-head {
   display: flex;
   justify-content: space-between;
@@ -1105,6 +1128,54 @@ button.inventory-slot:focus-visible {
   color: var(--muted);
   line-height: 1.45;
   text-align: center;
+}
+
+.how-to-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.how-to-card {
+  min-width: 0;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(227, 193, 111, 0.18);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(227, 193, 111, 0.12), transparent 32%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.how-to-card b {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  grid-row: span 2;
+  border-radius: 8px;
+  background: rgba(227, 193, 111, 0.16);
+  color: #fff0ad;
+  font-size: 1rem;
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.how-to-card strong {
+  color: #fff6c8;
+  font-size: 1rem;
+  font-weight: 1000;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.how-to-card span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.35;
 }
 
 .settings-options {
@@ -1548,8 +1619,8 @@ button.inventory-slot:focus-visible {
   place-items: center;
   overflow: hidden;
   pointer-events: none;
-  background: rgba(3, 7, 6, 0.42);
-  backdrop-filter: blur(3px);
+  background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(6px);
 }
 
 .result-burst {
@@ -1562,16 +1633,12 @@ button.inventory-slot:focus-visible {
 }
 
 .result-effect.is-victory .result-burst {
-  background:
-    radial-gradient(circle, rgba(255, 246, 190, 0.95) 0 8%, rgba(227, 193, 111, 0.52) 9% 22%, transparent 23%),
-    conic-gradient(from 20deg, transparent 0 8%, rgba(227, 193, 111, 0.76) 9% 11%, transparent 12% 20%);
+  background: radial-gradient(circle, rgba(255, 246, 190, 0.95) 0 8%, rgba(227, 193, 111, 0.52) 9% 22%, transparent 23%);
   box-shadow: 0 0 80px rgba(227, 193, 111, 0.42);
 }
 
 .result-effect.is-defeat .result-burst {
-  background:
-    radial-gradient(circle, rgba(255, 170, 184, 0.92) 0 8%, rgba(255, 78, 100, 0.48) 9% 22%, transparent 23%),
-    conic-gradient(from -12deg, transparent 0 8%, rgba(255, 78, 100, 0.7) 9% 11%, transparent 12% 20%);
+  background: radial-gradient(circle, rgba(255, 170, 184, 0.92) 0 8%, rgba(255, 78, 100, 0.48) 9% 22%, transparent 23%);
   box-shadow: 0 0 80px rgba(255, 78, 100, 0.38);
 }
 
@@ -3113,7 +3180,8 @@ button.inventory-slot:focus-visible {
   }
 
   .combos-grid,
-  .theme-combo-list {
+  .theme-combo-list,
+  .how-to-grid {
     grid-template-columns: 1fr;
   }
 
