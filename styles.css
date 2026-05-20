@@ -2186,6 +2186,8 @@ button.inventory-slot:focus-visible {
   width: 68px;
   height: 95px;
   margin: 0;
+  --card-type-h: 14px;
+  --card-band-overlap: 4px;
 }
 
 .deck-list-card .card-type,
@@ -2341,6 +2343,9 @@ button.inventory-slot:focus-visible {
   transform-origin: center center;
   will-change: transform, filter;
   animation: cardIdleIn 260ms ease;
+  --card-band-overlap: 7px;
+  --card-band-border: rgba(255, 255, 255, 0.24);
+  --card-band-shadow: rgba(0, 0, 0, 0.36);
 }
 
 .playing-card.is-sorting {
@@ -2565,6 +2570,7 @@ button.inventory-slot:focus-visible {
 }
 
 .playing-card img {
+  position: static;
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -2633,46 +2639,80 @@ button.inventory-slot:focus-visible {
   position: absolute;
   left: 0;
   right: 0;
-  top: 100%;
-  min-height: var(--card-type-h);
+  bottom: calc(var(--card-band-overlap) - var(--card-type-h));
+  min-height: calc(var(--card-type-h) + 3px);
   display: grid;
   place-items: center;
-  border-radius: 0 0 7px 7px;
-  background: #3f3f3f;
+  padding: 0 8px 2px;
+  border: 1px solid var(--card-band-border);
+  border-top-color: rgba(255, 255, 255, 0.34);
+  border-radius: 0 0 8px 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 34%),
+    #3f3f3f;
   color: #ffffff;
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: clamp(0.54rem, 0.62vw, 0.8rem);
+  font-weight: 900;
   letter-spacing: 0.08em;
   line-height: 1;
   text-transform: uppercase;
   pointer-events: none;
+  z-index: 5;
+  text-align: center;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.56),
+    0 0 8px rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 4px 0 var(--card-band-shadow),
+    0 9px 18px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.34);
+}
+
+.card-type::before {
+  content: none;
 }
 
 .card-tier {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 100%;
-  min-height: var(--card-type-h);
+  top: calc(var(--card-band-overlap) - var(--card-type-h));
+  min-height: calc(var(--card-type-h) + 2px);
   display: grid;
   place-items: center;
+  padding: 2px 9px 0;
+  border: 1px solid rgba(255, 240, 170, 0.58);
+  border-bottom-color: rgba(120, 76, 18, 0.38);
   border-radius: 7px 7px 0 0;
   background:
-    linear-gradient(90deg, rgba(245, 241, 231, 0.94), rgba(227, 193, 111, 0.96));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 241, 170, 0.62) 32%, rgba(218, 151, 45, 0.94));
   color: #19140a;
-  font-size: 0.78rem;
+  font-size: clamp(0.5rem, 0.58vw, 0.74rem);
   font-weight: 900;
   letter-spacing: 0.08em;
   line-height: 1;
   text-transform: uppercase;
   pointer-events: none;
+  z-index: 5;
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
   box-shadow:
-    0 0 16px rgba(227, 193, 111, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.52);
+    0 -4px 0 rgba(64, 38, 6, 0.3),
+    0 -9px 18px rgba(227, 193, 111, 0.2),
+    0 0 16px rgba(227, 193, 111, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.74),
+    inset 0 -1px 0 rgba(113, 68, 12, 0.38);
+}
+
+.card-tier::before {
+  content: none;
 }
 
 .card-normal .card-type {
-  background: #3f3f3f;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 36%),
+    linear-gradient(90deg, #282828, #4b4b4b 50%, #252525);
   color: #ffffff;
 }
 
@@ -2773,12 +2813,19 @@ button.inventory-slot:focus-visible {
 .card-golden .card-type,
 .card-cursed .card-type {
   background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 36%),
     var(--type-label-bg);
   color: #ffffff;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.48);
+  border-color: rgba(255, 255, 255, 0.26);
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.52),
+    0 0 8px rgba(255, 255, 255, 0.16);
   box-shadow:
+    0 4px 0 var(--card-band-shadow),
+    0 9px 18px rgba(0, 0, 0, 0.28),
     0 0 16px var(--type-label-shadow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.26);
 }
 
 .card-holy .card-type,
