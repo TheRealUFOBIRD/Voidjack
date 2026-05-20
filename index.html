@@ -41,6 +41,7 @@
             <strong id="coinsLabel">0</strong>
           </div>
           <div id="damageCountOverlay" class="damage-count-overlay" aria-hidden="true"></div>
+          <div id="comboSelectionOverlay" class="combo-selection-overlay" aria-live="polite"></div>
         </aside>
 
         <section class="table-panel">
@@ -74,7 +75,6 @@
             </section>
 
             <section class="center-strip">
-              <div id="messageBanner" class="message-banner">Ziehe bis 7 Karten. Spiele bis zu 3 Karten pro Zug.</div>
               <div class="button-row">
                 <button id="playSelectedButton" class="control-button play">Spielen</button>
                 <button id="discardSelectedButton" class="control-button discard">Abwerfen</button>
@@ -111,10 +111,7 @@
                   </div>
                 </div>
               </div>
-              <div class="inventory-slots" aria-label="Inventarplätze">
-                <div class="inventory-slot" aria-hidden="true"></div>
-                <div class="inventory-slot" aria-hidden="true"></div>
-                <div class="inventory-slot" aria-hidden="true"></div>
+              <div id="inventorySlots" class="inventory-slots" aria-label="Inventarplätze">
               </div>
               <div class="permanent-upgrade-slots" aria-label="Permanente Upgrade-Plätze">
                 <div class="permanent-upgrade-slot" aria-hidden="true"></div>
@@ -122,6 +119,12 @@
                 <div class="permanent-upgrade-slot" aria-hidden="true"></div>
               </div>
               <div id="playerCards" class="card-row"></div>
+              <div class="hand-sort-controls" aria-label="Hand sortieren">
+                <button id="sortHandRankButton" class="hand-sort-button" type="button">RANG</button>
+                <button id="sortHandSuitButton" class="hand-sort-button" type="button">FARBE</button>
+                <button id="sortHandTypeButton" class="hand-sort-button" type="button">TYP</button>
+                <button id="sortHandTierButton" class="hand-sort-button" type="button">STUFE</button>
+              </div>
             </section>
           </div>
           <div id="resultEffect" class="result-effect is-hidden" aria-hidden="true">
@@ -152,6 +155,9 @@
                   <h3 id="boosterChoiceTitle">Wähle 1 Karte</h3>
                 </div>
                 <div id="boosterChoices" class="booster-choice-grid"></div>
+                <div class="button-row booster-choice-actions">
+                  <button id="skipBoosterChoiceButton" class="control-button ghost" type="button">Überspringen</button>
+                </div>
               </div>
 
               <div class="button-row">
@@ -173,11 +179,23 @@
               <p id="deckSummary" class="deck-summary">0 Karten</p>
               <div class="deck-content">
                 <div id="deckList" class="deck-list"></div>
-                <aside class="deck-hover-info" aria-label="Karteninfo im Deckfenster">
-                  <div id="deckPreviewSlot" class="deck-preview-slot"></div>
-                  <h3 id="deckPreviewTitle">Hover Card</h3>
-                  <p id="deckPreviewText" class="preview-text">Hover über eine Karte, um Details zu sehen.</p>
-                </aside>
+              </div>
+            </div>
+          </section>
+
+          <section id="trashItemPanel" class="deck-screen item-use-screen is-hidden">
+            <div class="deck-window item-use-window">
+              <div class="deck-head">
+                <div>
+                  <h2>Müll</h2>
+                </div>
+                <button id="cancelTrashItemButton" class="control-button close-deck-button" aria-label="Item abbrechen">X</button>
+              </div>
+
+              <p id="trashItemSummary" class="deck-summary">Wähle bis zu 2 Karten zum Entfernen.</p>
+              <div id="trashItemDeckList" class="deck-list item-removal-list"></div>
+              <div class="button-row">
+                <button id="confirmTrashItemButton" class="control-button discard">Entfernen</button>
               </div>
             </div>
           </section>
@@ -264,12 +282,28 @@
         </div>
       </div>
 
-      <div id="settingsMenuPanel" class="menu-dialog is-hidden" aria-label="Einstellungen">
+      <div id="settingsMenuPanel" class="menu-dialog settings-menu-dialog is-hidden" aria-label="Einstellungen">
         <div class="menu-dialog-head">
           <h2>EINSTELLUNGEN</h2>
           <button id="closeSettingsButton" class="control-button close-deck-button" aria-label="Einstellungen schließen">X</button>
         </div>
-        <p class="menu-dialog-copy">Einstellungen kommen später hier rein.</p>
+        <div class="settings-options">
+          <label class="settings-toggle" for="musicToggle">
+            <span>Musik</span>
+            <input id="musicToggle" type="checkbox" checked>
+            <strong>Ein / Aus</strong>
+          </label>
+          <label class="settings-toggle" for="effectsToggle">
+            <span>Effekte</span>
+            <input id="effectsToggle" type="checkbox" checked>
+            <strong>Ein / Aus</strong>
+          </label>
+          <label class="settings-toggle" for="shakeToggle">
+            <span>Rütteln</span>
+            <input id="shakeToggle" type="checkbox" checked>
+            <strong>Ein / Aus</strong>
+          </label>
+        </div>
       </div>
 
       <div id="profileMenuPanel" class="menu-dialog is-hidden" aria-label="Profil">

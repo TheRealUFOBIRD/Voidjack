@@ -483,6 +483,31 @@ h3 {
     inset 0 0 18px rgba(0, 0, 0, 0.18);
 }
 
+button.inventory-slot {
+  padding: 6px;
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease, filter 140ms ease;
+}
+
+button.inventory-slot:hover,
+button.inventory-slot:focus-visible {
+  border-color: rgba(227, 193, 111, 0.74);
+  filter: brightness(1.12);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.inventory-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter:
+    drop-shadow(0 5px 8px rgba(0, 0, 0, 0.45))
+    drop-shadow(0 0 10px rgba(227, 193, 111, 0.18));
+  pointer-events: none;
+}
+
 .permanent-upgrade-slots {
   position: absolute;
   right: clamp(12px, 2vw, 24px);
@@ -989,6 +1014,10 @@ h3 {
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
+.settings-menu-dialog {
+  width: min(760px, calc(100vw - 28px));
+}
+
 .menu-dialog-head {
   display: flex;
   justify-content: space-between;
@@ -1011,6 +1040,101 @@ h3 {
   color: var(--muted);
   line-height: 1.45;
   text-align: center;
+}
+
+.settings-options {
+  display: grid;
+  gap: 12px;
+}
+
+.settings-toggle {
+  min-width: 0;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(227, 193, 111, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025)),
+    rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+
+.settings-toggle span {
+  color: #fff0ad;
+  font-size: 0.95rem;
+  font-weight: 1000;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.settings-toggle strong {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 1000;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.settings-toggle input {
+  width: 56px;
+  height: 30px;
+  appearance: none;
+  position: relative;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 111, 126, 0.42);
+  background:
+    linear-gradient(180deg, rgba(255, 111, 126, 0.16), rgba(255, 255, 255, 0.035)),
+    rgba(0, 0, 0, 0.32);
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, 0.34),
+    0 0 12px rgba(255, 111, 126, 0.12);
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.settings-toggle input::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.88), transparent 24%),
+    linear-gradient(135deg, #ffd7dd, #ca4354 62%, #5c1720);
+  box-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.32),
+    0 0 10px rgba(255, 111, 126, 0.32);
+  transition: transform 160ms cubic-bezier(0.16, 0.84, 0.18, 1), background 140ms ease, box-shadow 140ms ease;
+}
+
+.settings-toggle input:checked {
+  border-color: rgba(99, 229, 172, 0.52);
+  background:
+    linear-gradient(180deg, rgba(99, 229, 172, 0.18), rgba(255, 255, 255, 0.04)),
+    rgba(0, 0, 0, 0.32);
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, 0.32),
+    0 0 14px rgba(99, 229, 172, 0.18);
+}
+
+.settings-toggle input:checked::before {
+  transform: translateX(26px);
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.9), transparent 24%),
+    linear-gradient(135deg, #b8ffd8, #34c98b 62%, #145a42);
+  box-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.32),
+    0 0 10px rgba(99, 229, 172, 0.36);
+}
+
+.settings-toggle input:focus-visible {
+  outline: 2px solid rgba(227, 193, 111, 0.78);
+  outline-offset: 4px;
 }
 
 .profile-name-field {
@@ -1185,6 +1309,33 @@ h3 {
     drop-shadow(0 0 18px rgba(227, 193, 111, 0.16));
   transform: perspective(900px) rotateX(4deg) rotateY(-8deg);
   transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), filter 180ms ease;
+}
+
+.item-card-preview {
+  min-height: 160px;
+  padding: 0;
+}
+
+.shop-item-image {
+  width: min(136px, 70%);
+  aspect-ratio: 1;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter:
+    drop-shadow(0 14px 22px rgba(0, 0, 0, 0.42))
+    drop-shadow(0 0 18px rgba(227, 193, 111, 0.18));
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), filter 180ms ease;
+}
+
+.item-offer-card {
+  min-height: 290px;
+}
+
+.item-offer-card:hover .shop-item-image {
+  transform: translateY(-7px) rotate(-5deg) scale(1.08);
+  filter:
+    drop-shadow(0 20px 28px rgba(0, 0, 0, 0.48))
+    drop-shadow(0 0 24px rgba(227, 193, 111, 0.26));
 }
 
 .offer-card:hover .booster-pack-image {
@@ -1568,10 +1719,7 @@ h3 {
 
 .deck-content {
   min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
-  gap: 18px;
-  align-items: start;
+  display: block;
 }
 
 .deck-list {
@@ -1604,6 +1752,16 @@ h3 {
   background: rgba(255, 255, 255, 0.07);
   outline: none;
   transform: translateY(-1px);
+}
+
+.deck-list-item.is-selected {
+  border-color: rgba(255, 111, 126, 0.78);
+  background:
+    linear-gradient(180deg, rgba(255, 111, 126, 0.16), rgba(255, 255, 255, 0.045)),
+    rgba(255, 255, 255, 0.04);
+  box-shadow:
+    0 0 0 2px rgba(255, 111, 126, 0.18),
+    0 0 22px rgba(255, 111, 126, 0.16);
 }
 
 .deck-list-card {
@@ -1663,31 +1821,18 @@ h3 {
   line-height: 1;
 }
 
-.deck-hover-info {
-  position: sticky;
-  top: 0;
-  min-width: 0;
-  padding: 18px 14px 14px;
-  display: grid;
-  gap: 10px;
-  border-radius: 10px;
-  border: 0;
-  background: rgba(255, 255, 255, 0.028);
-  overflow: visible;
+.item-use-screen {
+  z-index: 35;
 }
 
-.deck-preview-slot {
-  min-height: clamp(240px, 36vh, 390px);
-  padding: var(--card-type-h) 0 10px;
-  display: grid;
-  place-items: center;
-  overflow: visible;
+.item-use-window {
+  width: min(960px, calc(100% - 24px));
 }
 
-.deck-preview-slot .playing-card {
-  width: clamp(150px, 20vw, 230px);
-  height: auto;
-  aspect-ratio: 5 / 7;
+.item-removal-list {
+  max-height: min(560px, 58dvh);
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  padding-right: 6px;
 }
 
 .card-row {
@@ -1710,6 +1855,53 @@ h3 {
 .card-row .playing-card {
   margin-top: 0;
   margin-bottom: 0;
+}
+
+.hand-sort-controls {
+  position: relative;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: -18px;
+  padding-bottom: 4px;
+}
+
+.hand-sort-button {
+  min-width: 68px;
+  min-height: 34px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 199, 255, 0.42);
+  background:
+    linear-gradient(180deg, rgba(148, 199, 255, 0.16), rgba(255, 255, 255, 0.035)),
+    rgba(7, 14, 18, 0.72);
+  color: #dceeff;
+  font-size: 0.78rem;
+  font-weight: 1000;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow:
+    0 5px 0 rgba(0, 0, 0, 0.24),
+    0 0 14px rgba(74, 163, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: transform 140ms ease, border-color 140ms ease, filter 140ms ease;
+}
+
+.hand-sort-button:hover:not(:disabled),
+.hand-sort-button:focus-visible {
+  border-color: rgba(148, 199, 255, 0.78);
+  filter: brightness(1.12);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.hand-sort-button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.65);
+  opacity: 0.45;
 }
 
 .playing-card {
@@ -1810,6 +2002,82 @@ h3 {
   animation: damageTotalThump 260ms cubic-bezier(0.16, 0.84, 0.18, 1);
 }
 
+.combo-selection-overlay {
+  width: 100%;
+  min-height: 118px;
+  padding: 8px 0;
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(12px) scale(0.92);
+  transition: opacity 160ms ease, transform 160ms cubic-bezier(0.16, 0.84, 0.18, 1);
+}
+
+.combo-selection-overlay.is-active {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.combo-selection-label {
+  color: #fff6c8;
+  font-size: 0.78rem;
+  font-weight: 1000;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  text-transform: uppercase;
+  text-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.64),
+    0 0 12px rgba(255, 246, 200, 0.62);
+}
+
+.combo-selection-bonuses {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.combo-selection-bonuses span {
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 1000;
+  line-height: 1;
+  text-align: center;
+  text-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.68),
+    0 0 12px rgba(255, 246, 200, 0.48),
+    0 0 24px rgba(255, 202, 83, 0.34);
+}
+
+.combo-selection-total {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #ffffff;
+  font-size: clamp(1.8rem, 3vw, 2.7rem);
+  font-weight: 1000;
+  line-height: 0.9;
+  text-shadow:
+    0 5px 0 rgba(0, 0, 0, 0.7),
+    0 0 18px rgba(255, 255, 255, 0.6),
+    0 0 32px rgba(255, 219, 111, 0.66),
+    0 0 50px rgba(255, 81, 89, 0.42);
+  animation: damageTotalThump 260ms cubic-bezier(0.16, 0.84, 0.18, 1);
+}
+
+.combo-selection-total img {
+  width: 0.82em;
+  height: 0.82em;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter:
+    drop-shadow(0 4px 0 rgba(0, 0, 0, 0.58))
+    drop-shadow(0 0 12px rgba(255, 219, 111, 0.72));
+}
+
 .playing-card::before {
   content: none;
 }
@@ -1892,7 +2160,8 @@ h3 {
 }
 
 .playing-card.is-entering {
-  animation: cardDealIn 420ms cubic-bezier(0.17, 0.84, 0.26, 1.18);
+  animation: cardDealIn 220ms cubic-bezier(0.17, 0.84, 0.26, 1.18) both;
+  animation-delay: var(--deal-delay, 0ms);
 }
 
 .dealer-lane .playing-card.is-entering {
@@ -2272,8 +2541,33 @@ h3 {
 }
 
 .preview-text {
+  display: grid;
+  gap: 8px;
   color: var(--muted);
   line-height: 1.38;
+}
+
+.preview-text span {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.preview-text b {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 1000;
+  letter-spacing: 0.12em;
+}
+
+.preview-text strong {
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 1000;
+  text-align: right;
 }
 
 .info-panel {
@@ -2451,14 +2745,6 @@ h3 {
 
   .booster-choice-grid {
     grid-template-columns: 1fr;
-  }
-
-  .deck-content {
-    grid-template-columns: 1fr;
-  }
-
-  .deck-hover-info {
-    position: static;
   }
 
   .deck-head {

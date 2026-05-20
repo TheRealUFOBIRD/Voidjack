@@ -15,10 +15,10 @@ const RANKS = [
   ["8", 8],
   ["9", 9],
   ["10", 10],
-  ["j", 10],
-  ["q", 10],
-  ["k", 10],
-  ["a", 11]
+  ["j", 11],
+  ["q", 11],
+  ["k", 11],
+  ["a", 12]
 ];
 
 const CARD_TYPES = {
@@ -118,7 +118,7 @@ const BOOSTER_TYPES = {
     label: "NORMAL BOOSTER",
     typeId: "normal",
     sprite: "assets/boosters/normal.png",
-    baseCost: 3,
+    baseCost: 6,
     description: "Enthält 3 normale Karten."
   },
   random: {
@@ -126,7 +126,7 @@ const BOOSTER_TYPES = {
     label: "RANDOM BOOSTER",
     typeId: "random",
     sprite: "assets/boosters/random.png",
-    baseCost: 9,
+    baseCost: 8,
     description: "Enthält 3 zufällige Karten aus allen Arten."
   },
   magical: {
@@ -134,7 +134,7 @@ const BOOSTER_TYPES = {
     label: "MAGISCH BOOSTER",
     typeId: "magical",
     sprite: "assets/boosters/magisch.png",
-    baseCost: 15,
+    baseCost: 12,
     description: "Enthält 3 magische Karten."
   },
   void: {
@@ -150,7 +150,7 @@ const BOOSTER_TYPES = {
     label: "ELEMENTAL BOOSTER",
     typeId: "elemental",
     sprite: "assets/boosters/elementar.png",
-    baseCost: 15,
+    baseCost: 12,
     description: "Enthält 3 Elemental-Karten."
   },
   dark: {
@@ -158,7 +158,7 @@ const BOOSTER_TYPES = {
     label: "DUNKEL BOOSTER",
     typeId: "dark",
     sprite: "assets/boosters/dunkel.png",
-    baseCost: 15,
+    baseCost: 12,
     description: "Enthält 3 dunkle Karten."
   },
   holy: {
@@ -166,7 +166,7 @@ const BOOSTER_TYPES = {
     label: "HEILIG BOOSTER",
     typeId: "holy",
     sprite: "assets/boosters/heilig.png",
-    baseCost: 16,
+    baseCost: 12,
     description: "Enthält 3 heilige Karten."
   },
   golden: {
@@ -174,7 +174,7 @@ const BOOSTER_TYPES = {
     label: "GOLDEN BOOSTER",
     typeId: "golden",
     sprite: "assets/boosters/golden.png",
-    baseCost: 18,
+    baseCost: 12,
     description: "Enthält 3 goldene Karten."
   },
   cursed: {
@@ -182,7 +182,7 @@ const BOOSTER_TYPES = {
     label: "VERFLUCHT BOOSTER",
     typeId: "cursed",
     sprite: "assets/boosters/verflucht.png",
-    baseCost: 13,
+    baseCost: 12,
     description: "Enthält 3 verfluchte Karten."
   }
 };
@@ -197,22 +197,44 @@ const SPECIAL_BOOSTER_SEQUENCE = [
   "cursed"
 ];
 
+const ITEM_TYPES = {
+  trash: {
+    id: "trash",
+    label: "Müll",
+    sprite: "assets/icons/item_trash.png",
+    baseCost: 8,
+    description: "Entfernt 2 Karten dauerhaft aus deinem Deck."
+  }
+};
+
 const DEALER_BASE_HP = 60;
 const PLAYER_BASE_HP = 80;
 const WIN_REWARD_COINS = 20;
 const DEBUG_COINS = 25;
 const STARTING_DECK_SIZE = 13;
 const MAX_HAND_SIZE = 7;
+const MAX_DISCARD_DRAW_COUNT = 5;
 const MAX_CARDS_PER_TURN = 3;
 const BASE_MAX_PLAYS_PER_ROUND = 4;
 const BASE_MAX_DISCARDS_PER_ROUND = 2;
 const DEALER_HAND_SIZE = 2;
 const SHOP_OFFER_COUNT = 3;
 const SHOP_REROLL_COST = 6;
+const SPECIAL_BOOSTER_CHANCE = 0.025;
+const ITEM_SHOP_CHANCE = 0.55;
+const COMBO_PAIR_BONUS_COINS = 2;
+const COMBO_TRIPLE_BONUS_COINS = 5;
+const COMBO_FLUSH_BONUS_COINS = 4;
+const COMBO_THEME_TRIPLE_BONUS_COINS = 10;
+const INVENTORY_SLOT_COUNT = 3;
+const TRASH_ITEM_REMOVE_COUNT = 2;
+const TRASH_ITEM_MIN_REMOVE_COUNT = 1;
 const CARD_TIER_MIN = 1;
 const CARD_TIER_MAX = 10;
 const STARTING_VOLUME = 5;
 const CARD_EXIT_ANIMATION_MS = 360;
+const CARD_DEAL_ANIMATION_MS = 220;
+const CARD_DEAL_STAGGER_MS = 45;
 const DAMAGE_COUNT_STEP_MS = 520;
 const DAMAGE_COUNT_FINAL_HOLD_MS = 620;
 const RESULT_CARD_ANIMATION_MS = 760;
@@ -231,6 +253,11 @@ const SAVEGAME_VERSION = 1;
 const CARD_LIBRARY = buildCardLibrary();
 let currentProfileName = "";
 let isRunReady = false;
+const audioSettings = {
+  musicEnabled: true,
+  effectsEnabled: true,
+  shakeEnabled: true
+};
 
 const state = {
   round: 0,
@@ -242,8 +269,12 @@ const state = {
   dealerCards: [],
   selectedCardIds: [],
   shopOffers: [],
+  shopItemOffer: null,
+  inventoryItems: [],
   boosterChoice: null,
   isDeckOpen: false,
+  activeTrashItemSlotIndex: null,
+  trashSelectedDeckEntryIds: [],
   fieldThemeId: "normal",
   phase: "combat",
   player: {
@@ -262,8 +293,6 @@ const state = {
   message: "Ziehe bis 7 Karten. Spiele bis zu 3 Karten pro Zug.",
   hoveredTemplateId: null,
   hoveredTier: CARD_TIER_MIN,
-  deckHoveredTemplateId: null,
-  deckHoveredTier: CARD_TIER_MIN,
   enteringCardIds: [],
   animatingCardIds: [],
   cardAnimationType: null,
@@ -303,12 +332,19 @@ const els = {
   dealerCards: document.getElementById("dealerCards"),
   playerCards: document.getElementById("playerCards"),
   damageCountOverlay: document.getElementById("damageCountOverlay"),
+  comboSelectionOverlay: document.getElementById("comboSelectionOverlay"),
+  sortHandRankButton: document.getElementById("sortHandRankButton"),
+  sortHandSuitButton: document.getElementById("sortHandSuitButton"),
+  sortHandTypeButton: document.getElementById("sortHandTypeButton"),
+  sortHandTierButton: document.getElementById("sortHandTierButton"),
   shopPanel: document.getElementById("shopPanel"),
   shopCoinsLabel: document.getElementById("shopCoinsLabel"),
   shopOffers: document.getElementById("shopOffers"),
+  inventorySlots: document.getElementById("inventorySlots"),
   boosterChoicePanel: document.getElementById("boosterChoicePanel"),
   boosterChoiceTitle: document.getElementById("boosterChoiceTitle"),
   boosterChoices: document.getElementById("boosterChoices"),
+  skipBoosterChoiceButton: document.getElementById("skipBoosterChoiceButton"),
   victoryPanel: document.getElementById("victoryPanel"),
   victoryText: document.getElementById("victoryText"),
   continueToShopButton: document.getElementById("continueToShopButton"),
@@ -325,9 +361,11 @@ const els = {
   volumeValueLabel: document.getElementById("volumeValueLabel"),
   deckSummary: document.getElementById("deckSummary"),
   deckList: document.getElementById("deckList"),
-  deckPreviewSlot: document.getElementById("deckPreviewSlot"),
-  deckPreviewTitle: document.getElementById("deckPreviewTitle"),
-  deckPreviewText: document.getElementById("deckPreviewText"),
+  trashItemPanel: document.getElementById("trashItemPanel"),
+  trashItemSummary: document.getElementById("trashItemSummary"),
+  trashItemDeckList: document.getElementById("trashItemDeckList"),
+  confirmTrashItemButton: document.getElementById("confirmTrashItemButton"),
+  cancelTrashItemButton: document.getElementById("cancelTrashItemButton"),
   resultEffect: document.getElementById("resultEffect"),
   resultEffectText: document.getElementById("resultEffectText"),
   previewSlot: document.getElementById("previewSlot"),
@@ -343,6 +381,9 @@ const els = {
   profileMenuButton: document.getElementById("profileMenuButton"),
   settingsMenuPanel: document.getElementById("settingsMenuPanel"),
   closeSettingsButton: document.getElementById("closeSettingsButton"),
+  musicToggle: document.getElementById("musicToggle"),
+  effectsToggle: document.getElementById("effectsToggle"),
+  shakeToggle: document.getElementById("shakeToggle"),
   profileMenuPanel: document.getElementById("profileMenuPanel"),
   closeProfileButton: document.getElementById("closeProfileButton"),
   playerNameInput: document.getElementById("playerNameInput"),
@@ -359,6 +400,62 @@ function setSoundtrackVolume(value) {
   els.soundtrackAudio.volume = volumePercent / 100;
   els.volumeSlider.value = String(volumePercent);
   els.volumeValueLabel.textContent = `${volumePercent}%`;
+}
+
+function loadAudioSettings() {
+  try {
+    const savedSettings = JSON.parse(window.localStorage?.getItem("voidjack-audio-settings") || "{}");
+    audioSettings.musicEnabled = savedSettings.musicEnabled !== false;
+    audioSettings.effectsEnabled = savedSettings.effectsEnabled !== false;
+    audioSettings.shakeEnabled = savedSettings.shakeEnabled !== false;
+  } catch (error) {
+    audioSettings.musicEnabled = true;
+    audioSettings.effectsEnabled = true;
+    audioSettings.shakeEnabled = true;
+  }
+}
+
+function saveAudioSettings() {
+  try {
+    window.localStorage?.setItem("voidjack-audio-settings", JSON.stringify(audioSettings));
+  } catch (error) {
+    // Audio-Einstellungen sind Komfortdaten und duerfen das Spiel nicht unterbrechen.
+  }
+}
+
+function updateAudioSettingsUi() {
+  els.musicToggle.checked = audioSettings.musicEnabled;
+  els.effectsToggle.checked = audioSettings.effectsEnabled;
+  els.shakeToggle.checked = audioSettings.shakeEnabled;
+}
+
+function setMusicEnabled(isEnabled) {
+  audioSettings.musicEnabled = Boolean(isEnabled);
+  updateAudioSettingsUi();
+  saveAudioSettings();
+
+  if (audioSettings.musicEnabled) {
+    playSoundtrack();
+    return;
+  }
+
+  els.soundtrackAudio.pause();
+}
+
+function setEffectsEnabled(isEnabled) {
+  audioSettings.effectsEnabled = Boolean(isEnabled);
+  updateAudioSettingsUi();
+  saveAudioSettings();
+}
+
+function setShakeEnabled(isEnabled) {
+  audioSettings.shakeEnabled = Boolean(isEnabled);
+  updateAudioSettingsUi();
+  saveAudioSettings();
+
+  if (!audioSettings.shakeEnabled) {
+    document.body.classList.remove("screen-shake");
+  }
 }
 
 function getProfileNameInput() {
@@ -400,6 +497,7 @@ function returnToMainMenu() {
 }
 
 function openSettingsMenu() {
+  updateAudioSettingsUi();
   els.settingsMenuPanel.classList.remove("is-hidden");
   els.profileMenuPanel.classList.add("is-hidden");
 }
@@ -429,7 +527,9 @@ function startGameFromMenu() {
   hideMainMenu();
   updateProfileUi();
   render();
-  playSoundtrack();
+  if (audioSettings.musicEnabled) {
+    playSoundtrack();
+  }
 }
 
 function getSaveGameData() {
@@ -451,6 +551,8 @@ function getSaveGameData() {
       playerCards: state.playerCards,
       dealerCards: state.dealerCards,
       shopOffers: state.shopOffers,
+      shopItemOffer: state.shopItemOffer,
+      inventoryItems: state.inventoryItems,
       boosterChoice: state.boosterChoice,
       fieldThemeId: state.fieldThemeId,
       phase: state.phase,
@@ -518,13 +620,17 @@ function applyProfileSave(saveGame) {
   state.actionToken += 1;
   state.round = Number(savedState.round) || 1;
   state.coins = Number(savedState.coins) || 0;
-  state.runDeck = Array.isArray(savedState.runDeck) ? savedState.runDeck : buildStartingDeck();
-  state.drawPile = Array.isArray(savedState.drawPile) ? savedState.drawPile : buildCombatDeck();
-  state.discardPile = Array.isArray(savedState.discardPile) ? savedState.discardPile : [];
-  state.playerCards = Array.isArray(savedState.playerCards) ? savedState.playerCards : [];
+  state.runDeck = Array.isArray(savedState.runDeck) ? normalizeRunDeck(savedState.runDeck) : buildStartingDeck();
+  state.drawPile = Array.isArray(savedState.drawPile) ? normalizeCombatCards(savedState.drawPile) : buildCombatDeck();
+  state.discardPile = Array.isArray(savedState.discardPile) ? normalizeCombatCards(savedState.discardPile) : [];
+  state.playerCards = Array.isArray(savedState.playerCards) ? normalizeCombatCards(savedState.playerCards) : [];
   state.dealerCards = Array.isArray(savedState.dealerCards) ? savedState.dealerCards : [];
   state.selectedCardIds = [];
   state.shopOffers = Array.isArray(savedState.shopOffers) ? savedState.shopOffers : [];
+  state.shopItemOffer = Object.prototype.hasOwnProperty.call(savedState, "shopItemOffer")
+    ? sanitizeShopItemOffer(savedState.shopItemOffer)
+    : null;
+  state.inventoryItems = normalizeInventoryItems(savedState.inventoryItems);
   state.boosterChoice = savedState.boosterChoice || null;
   state.fieldThemeId = FIELD_THEMES[savedState.fieldThemeId] ? savedState.fieldThemeId : "normal";
   state.phase = sanitizeLoadedPhase(savedState.phase);
@@ -538,8 +644,6 @@ function applyProfileSave(saveGame) {
   state.message = savedState.message || `Profil "${currentProfileName}" geladen.`;
   state.hoveredTemplateId = savedState.hoveredTemplateId || state.playerCards[0]?.templateId || null;
   state.hoveredTier = savedState.hoveredTier || state.playerCards[0]?.tier || CARD_TIER_MIN;
-  state.deckHoveredTemplateId = null;
-  state.deckHoveredTier = CARD_TIER_MIN;
   state.enteringCardIds = [];
   state.animatingCardIds = [];
   state.cardAnimationType = null;
@@ -547,9 +651,21 @@ function applyProfileSave(saveGame) {
   state.isActionLocked = false;
   state.resultEffect = null;
   state.isDeckOpen = false;
+  state.activeTrashItemSlotIndex = null;
+  state.trashSelectedDeckEntryIds = [];
 
-  if (state.phase === "shop" && state.shopOffers.length === 0) {
-    state.shopOffers = buildShopOffers();
+  if (state.phase === "shop") {
+    const hasSavedItemOffer = Object.prototype.hasOwnProperty.call(savedState, "shopItemOffer");
+    if (state.shopOffers.length === 0 || !hasSavedItemOffer) {
+      const shopStock = buildShopStock();
+      if (state.shopOffers.length === 0) {
+        state.shopOffers = shopStock.offers;
+      }
+      if (!hasSavedItemOffer) {
+        state.shopItemOffer = shopStock.itemOffer;
+      }
+    }
+    state.shopOffers = state.shopOffers.slice(0, state.shopItemOffer ? SHOP_OFFER_COUNT - 1 : SHOP_OFFER_COUNT);
   }
 
   isRunReady = true;
@@ -575,6 +691,11 @@ function uploadProfileSave(file) {
 }
 
 function playSoundtrack() {
+  if (!audioSettings.musicEnabled) {
+    els.soundtrackAudio.pause();
+    return;
+  }
+
   if (!els.soundtrackAudio.paused) {
     window.removeEventListener("pointerdown", playSoundtrack);
     window.removeEventListener("click", playSoundtrack);
@@ -595,7 +716,12 @@ function playSoundtrack() {
 
 function initSoundtrack() {
   setSoundtrackVolume(STARTING_VOLUME);
-  playSoundtrack();
+  updateAudioSettingsUi();
+  if (audioSettings.musicEnabled) {
+    playSoundtrack();
+  } else {
+    els.soundtrackAudio.pause();
+  }
 
   els.volumeSlider.addEventListener("input", (event) => {
     setSoundtrackVolume(event.target.value);
@@ -608,6 +734,11 @@ function initSoundtrack() {
 }
 
 function triggerScreenShake() {
+  if (!audioSettings.shakeEnabled) {
+    document.body.classList.remove("screen-shake");
+    return;
+  }
+
   document.body.classList.remove("screen-shake");
   window.requestAnimationFrame(() => {
     document.body.classList.add("screen-shake");
@@ -618,13 +749,18 @@ function triggerScreenShake() {
 }
 
 function clearEnteringCardsSoon() {
+  const clearDelay = CARD_DEAL_ANIMATION_MS + (state.enteringCardIds.length * CARD_DEAL_STAGGER_MS) + 120;
   window.setTimeout(() => {
     state.enteringCardIds = [];
     render();
-  }, 520);
+  }, clearDelay);
 }
 
 function playCardDealSound() {
+  if (!audioSettings.effectsEnabled) {
+    return;
+  }
+
   const sound = new Audio(CARD_DEAL_SOUND_SRC);
   sound.volume = 0.55;
   sound.play().catch(() => {
@@ -632,7 +768,15 @@ function playCardDealSound() {
   });
 }
 
+function queueCardDealSound(index) {
+  window.setTimeout(playCardDealSound, index * CARD_DEAL_STAGGER_MS);
+}
+
 function playButtonClickSound() {
+  if (!audioSettings.effectsEnabled) {
+    return;
+  }
+
   const sound = new Audio(BUTTON_CLICK_SOUND_SRC);
   sound.volume = Math.max(1, Math.min(100, BUTTON_CLICK_VOLUME)) / 100;
   sound.play().catch(() => {
@@ -641,6 +785,10 @@ function playButtonClickSound() {
 }
 
 function playCardSelectSound() {
+  if (!audioSettings.effectsEnabled) {
+    return;
+  }
+
   const sound = new Audio(CARD_SELECT_SOUND_SRC);
   sound.volume = Math.max(1, Math.min(100, CARD_SELECT_VOLUME)) / 100;
   sound.play().catch(() => {
@@ -649,6 +797,10 @@ function playCardSelectSound() {
 }
 
 function playBoosterOpenSound() {
+  if (!audioSettings.effectsEnabled) {
+    return;
+  }
+
   const sound = new Audio(BOOSTER_OPEN_SOUND_SRC);
   sound.volume = Math.max(1, Math.min(100, BOOSTER_OPEN_VOLUME)) / 100;
   sound.play().catch(() => {
@@ -677,8 +829,7 @@ function buildCardLibrary() {
         typeId: normalType.id,
         typeLabel: normalType.label,
         typeDescription: normalType.description,
-        isSpecial: false,
-        description: buildCardDescription(rankId, value, normalType)
+        isSpecial: false
       };
 
       SPECIAL_CARD_TYPE_SEQUENCE.forEach((typeId) => {
@@ -691,21 +842,12 @@ function buildCardLibrary() {
           typeId: specialType.id,
           typeLabel: specialType.label,
           typeDescription: specialType.description,
-          isSpecial: true,
-          description: buildCardDescription(rankId, value, specialType)
+          isSpecial: true
         };
       });
     });
   });
   return library;
-}
-
-function buildCardDescription(rankId, value, type) {
-  const damageText = rankId === "a"
-    ? "Ass gibt aktuell 11 Schaden."
-    : `Gibt ${value} Schaden.`;
-
-  return `${damageText} Art: ${type.label}. ${type.description}`;
 }
 
 function getCardDisplayName(template, tier = CARD_TIER_MIN) {
@@ -714,12 +856,28 @@ function getCardDisplayName(template, tier = CARD_TIER_MIN) {
     : template.displayName;
 }
 
-function getCardDescription(template, tier = CARD_TIER_MIN) {
-  const tierText = tier > CARD_TIER_MIN
-    ? ` Stufe ${tier}/10.`
+function getRankDisplayName(rankId) {
+  const rankNames = {
+    j: "Bube",
+    q: "Dame",
+    k: "König",
+    a: "Ass"
+  };
+
+  return rankNames[rankId] || rankId.toUpperCase();
+}
+
+function getCardDetailsMarkup(template, tier = CARD_TIER_MIN) {
+  const tierRow = tier > CARD_TIER_MIN
+    ? `<span><b>STUFE</b><strong>${tier}</strong></span>`
     : "";
 
-  return `${template.description}${tierText}`;
+  return `
+    <span><b>TYP</b><strong>${template.typeLabel}</strong></span>
+    <span><b>SCHADEN</b><strong>${template.value}</strong></span>
+    <span><b>KARTE</b><strong>${getRankDisplayName(template.rankId)}</strong></span>
+    ${tierRow}
+  `;
 }
 
 function shuffle(array) {
@@ -745,8 +903,8 @@ function getTemplateIdsForType(typeId) {
   return Object.keys(CARD_LIBRARY).filter((templateId) => CARD_LIBRARY[templateId].typeId === typeId);
 }
 
-function buildShopOffers() {
-  return Array.from({ length: SHOP_OFFER_COUNT }, () => {
+function buildShopOffers(count = SHOP_OFFER_COUNT) {
+  return Array.from({ length: count }, () => {
     const boosterId = rollShopBoosterId();
 
     return {
@@ -757,11 +915,59 @@ function buildShopOffers() {
   });
 }
 
+function buildShopStock() {
+  const itemOffer = buildShopItemOffer();
+
+  return {
+    offers: buildShopOffers(itemOffer ? SHOP_OFFER_COUNT - 1 : SHOP_OFFER_COUNT),
+    itemOffer
+  };
+}
+
+function buildShopItemOffer() {
+  if (Math.random() > ITEM_SHOP_CHANCE) {
+    return null;
+  }
+
+  return {
+    itemId: "trash",
+    cost: getItemCost("trash"),
+    isSold: false
+  };
+}
+
+function getItemCost(itemId) {
+  const item = ITEM_TYPES[itemId];
+  return item.baseCost;
+}
+
+function sanitizeShopItemOffer(offer) {
+  if (!offer || !ITEM_TYPES[offer.itemId]) {
+    return null;
+  }
+
+  return {
+    itemId: offer.itemId,
+    cost: Number(offer.cost) || getItemCost(offer.itemId),
+    isSold: Boolean(offer.isSold)
+  };
+}
+
+function normalizeInventoryItems(items) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .filter((item) => item && ITEM_TYPES[item.itemId])
+    .slice(0, INVENTORY_SLOT_COUNT)
+    .map((item) => ({ itemId: item.itemId }));
+}
+
 function rollShopBoosterId() {
-  const rarePressure = Math.min(0.08, 0.012 + ((state.round - 1) * 0.007));
-  const specialWeight = rarePressure / SPECIAL_BOOSTER_SEQUENCE.length;
+  const specialWeight = SPECIAL_BOOSTER_CHANCE / SPECIAL_BOOSTER_SEQUENCE.length;
   const weightedBoosters = [
-    { id: "normal", weight: 0.74 - rarePressure },
+    { id: "normal", weight: 0.74 - SPECIAL_BOOSTER_CHANCE },
     { id: "random", weight: 0.26 },
     ...SPECIAL_BOOSTER_SEQUENCE.map((id) => ({ id, weight: specialWeight }))
   ];
@@ -796,7 +1002,7 @@ function rollShopCardTier() {
 
 function getBoosterCost(boosterId) {
   const booster = BOOSTER_TYPES[boosterId];
-  return booster.baseCost + (state.round * 2);
+  return booster.baseCost;
 }
 
 function buildBoosterCards(boosterId) {
@@ -834,11 +1040,50 @@ function buildCombatDeck() {
   return shuffle(state.runDeck.map(createDeckCard));
 }
 
+function createDeckEntryId() {
+  return `deck_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function createRunDeckEntry(templateId, tier = CARD_TIER_MIN) {
   return {
+    deckEntryId: createDeckEntryId(),
     templateId,
     tier: clampCardTier(tier)
   };
+}
+
+function normalizeRunDeck(entries) {
+  return entries
+    .map((entry) => {
+      const normalized = typeof entry === "string"
+        ? createRunDeckEntry(entry)
+        : {
+            deckEntryId: entry.deckEntryId || createDeckEntryId(),
+            templateId: entry.templateId,
+            tier: clampCardTier(entry.tier)
+          };
+
+      return CARD_LIBRARY[normalized.templateId] ? normalized : null;
+    })
+    .filter(Boolean);
+}
+
+function normalizeCombatCards(cards) {
+  return cards
+    .map((card) => {
+      if (!card || !CARD_LIBRARY[card.templateId]) {
+        return null;
+      }
+
+      return {
+        ...card,
+        instanceId: card.instanceId || `card_${Math.random().toString(36).slice(2, 10)}`,
+        deckEntryId: card.deckEntryId || null,
+        tier: clampCardTier(card.tier),
+        hidden: Boolean(card.hidden)
+      };
+    })
+    .filter(Boolean);
 }
 
 function createDeckCard(deckEntry) {
@@ -848,6 +1093,7 @@ function createDeckCard(deckEntry) {
 
   return {
     instanceId: `card_${Math.random().toString(36).slice(2, 10)}`,
+    deckEntryId: entry.deckEntryId || createDeckEntryId(),
     templateId: entry.templateId,
     tier: clampCardTier(entry.tier),
     hidden: false
@@ -872,6 +1118,70 @@ function getHandPower(cards, revealHidden = true) {
   return total;
 }
 
+function getCountMap(cards, keyGetter) {
+  return cards.reduce((counts, card) => {
+    const template = CARD_LIBRARY[card.templateId];
+    const key = keyGetter(template);
+    counts[key] = (counts[key] || 0) + 1;
+    return counts;
+  }, {});
+}
+
+function getPlayedCardComboBonus(cards) {
+  const bonuses = [];
+  const rankCounts = getCountMap(cards, (template) => template.rankId);
+  const suitCounts = getCountMap(cards, (template) => template.suitId);
+  const typeCounts = getCountMap(cards, (template) => template.typeId);
+
+  Object.entries(rankCounts).forEach(([rankId, count]) => {
+    const rankLabel = rankId.toUpperCase();
+    if (count >= 3) {
+      bonuses.push({
+        label: `Drilling ${rankLabel}`,
+        coins: COMBO_TRIPLE_BONUS_COINS
+      });
+    } else if (count >= 2) {
+      bonuses.push({
+        label: `Paar ${rankLabel}`,
+        coins: COMBO_PAIR_BONUS_COINS
+      });
+    }
+  });
+
+  Object.entries(suitCounts).forEach(([suitId, count]) => {
+    if (count >= 3) {
+      bonuses.push({
+        label: `${SUITS[suitId]} Flush`,
+        coins: COMBO_FLUSH_BONUS_COINS
+      });
+    }
+  });
+
+  Object.entries(typeCounts).forEach(([typeId, count]) => {
+    if (typeId === "normal") {
+      return;
+    }
+
+    if (count >= 3 && CARD_TYPES[typeId]) {
+      bonuses.push({
+        label: `${CARD_TYPES[typeId].label} Thema`,
+        coins: COMBO_THEME_TRIPLE_BONUS_COINS
+      });
+    }
+  });
+
+  const coins = bonuses.reduce((sum, bonus) => sum + bonus.coins, 0);
+  return { coins, bonuses };
+}
+
+function getComboBonusMessage(comboBonus) {
+  if (!comboBonus || comboBonus.coins <= 0) {
+    return "";
+  }
+
+  return ` Combo: ${comboBonus.bonuses.map((bonus) => bonus.label).join(" + ")}. +${comboBonus.coins} Münzen.`;
+}
+
 function drawCard() {
   return state.drawPile.shift() || null;
 }
@@ -880,8 +1190,9 @@ function drawToPlayer() {
   const card = drawCard();
   if (card) {
     state.playerCards.push(card);
+    const enteringIndex = state.enteringCardIds.length;
     state.enteringCardIds.push(card.instanceId);
-    playCardDealSound();
+    queueCardDealSound(enteringIndex);
   }
 }
 
@@ -896,6 +1207,70 @@ function drawPlayerHand(size = MAX_HAND_SIZE) {
   }
 }
 
+function getRankSortIndex(rankId) {
+  const index = RANKS.findIndex(([id]) => id === rankId);
+  return index >= 0 ? index : RANKS.length;
+}
+
+function getSuitSortIndex(suitId) {
+  return Object.keys(SUITS).indexOf(suitId);
+}
+
+function getTypeSortIndex(typeId) {
+  const index = FIELD_THEME_SEQUENCE.indexOf(typeId);
+  return index >= 0 ? index : FIELD_THEME_SEQUENCE.length;
+}
+
+function sortPlayerHand(mode) {
+  if (state.phase !== "combat" || state.isActionLocked) {
+    return;
+  }
+
+  const cardsWithIndex = state.playerCards.map((card, index) => ({ card, index }));
+  cardsWithIndex.sort((left, right) => {
+    const leftTemplate = CARD_LIBRARY[left.card.templateId];
+    const rightTemplate = CARD_LIBRARY[right.card.templateId];
+    let sortValues;
+
+    if (mode === "suit") {
+      sortValues = [
+        getSuitSortIndex(leftTemplate.suitId) - getSuitSortIndex(rightTemplate.suitId),
+        getRankSortIndex(leftTemplate.rankId) - getRankSortIndex(rightTemplate.rankId),
+        getTypeSortIndex(leftTemplate.typeId) - getTypeSortIndex(rightTemplate.typeId),
+        left.card.tier - right.card.tier
+      ];
+    } else if (mode === "type") {
+      sortValues = [
+        getTypeSortIndex(leftTemplate.typeId) - getTypeSortIndex(rightTemplate.typeId),
+        getSuitSortIndex(leftTemplate.suitId) - getSuitSortIndex(rightTemplate.suitId),
+        getRankSortIndex(leftTemplate.rankId) - getRankSortIndex(rightTemplate.rankId),
+        left.card.tier - right.card.tier
+      ];
+    } else if (mode === "tier") {
+      sortValues = [
+        left.card.tier - right.card.tier,
+        getTypeSortIndex(leftTemplate.typeId) - getTypeSortIndex(rightTemplate.typeId),
+        getSuitSortIndex(leftTemplate.suitId) - getSuitSortIndex(rightTemplate.suitId),
+        getRankSortIndex(leftTemplate.rankId) - getRankSortIndex(rightTemplate.rankId)
+      ];
+    } else {
+      sortValues = [
+        getRankSortIndex(leftTemplate.rankId) - getRankSortIndex(rightTemplate.rankId),
+        getSuitSortIndex(leftTemplate.suitId) - getSuitSortIndex(rightTemplate.suitId),
+        getTypeSortIndex(leftTemplate.typeId) - getTypeSortIndex(rightTemplate.typeId),
+        left.card.tier - right.card.tier
+      ];
+    }
+
+    return sortValues.find((value) => value !== 0) || left.index - right.index;
+  });
+
+  state.playerCards = cardsWithIndex.map(({ card }) => card);
+  state.hoveredTemplateId = state.playerCards[0]?.templateId || null;
+  state.hoveredTier = state.playerCards[0]?.tier || CARD_TIER_MIN;
+  render();
+}
+
 function createDealerCard() {
   const templateIds = getNormalTemplateIds();
   return createDeckCard(createRunDeckEntry(templateIds[Math.floor(Math.random() * templateIds.length)]));
@@ -903,8 +1278,11 @@ function createDealerCard() {
 
 function drawDealerHand() {
   state.dealerCards = Array.from({ length: DEALER_HAND_SIZE }, createDealerCard);
-  state.enteringCardIds.push(...state.dealerCards.map((card) => card.instanceId));
-  playCardDealSound();
+  state.dealerCards.forEach((card) => {
+    const enteringIndex = state.enteringCardIds.length;
+    state.enteringCardIds.push(card.instanceId);
+    queueCardDealSound(enteringIndex);
+  });
 }
 
 function startRound() {
@@ -916,7 +1294,10 @@ function startRound() {
   state.dealerCards = [];
   state.selectedCardIds = [];
   state.shopOffers = [];
+  state.shopItemOffer = null;
   state.boosterChoice = null;
+  state.activeTrashItemSlotIndex = null;
+  state.trashSelectedDeckEntryIds = [];
   state.enteringCardIds = [];
   state.damageAnimation = null;
   state.playsThisRound = 0;
@@ -946,7 +1327,11 @@ function resetGame() {
   state.damageAnimation = null;
   state.resultEffect = null;
   state.shopOffers = [];
+  state.shopItemOffer = null;
+  state.inventoryItems = [];
   state.boosterChoice = null;
+  state.activeTrashItemSlotIndex = null;
+  state.trashSelectedDeckEntryIds = [];
   state.round = 0;
   state.coins = 0;
   state.runDeck = buildStartingDeck();
@@ -980,6 +1365,7 @@ function playSelectedCards() {
   }
 
   const damage = getHandPower(selectedCards);
+  const comboBonus = getPlayedCardComboBonus(selectedCards);
   const selectedCardIds = selectedCards.map((card) => card.instanceId);
   const actionToken = state.actionToken + 1;
   state.actionToken = actionToken;
@@ -1002,7 +1388,10 @@ function playSelectedCards() {
     state.damageAnimation = null;
     state.isActionLocked = false;
     state.playsThisRound += 1;
-    damageDealer(damage);
+    if (comboBonus.coins > 0) {
+      state.coins += comboBonus.coins;
+    }
+    damageDealer(damage, comboBonus);
   }, getDamageCountAnimationMs(selectedCards.length));
 }
 
@@ -1086,8 +1475,9 @@ function discardSelectedCards() {
     state.discardPile.push(...selectedCards);
     state.selectedCardIds = [];
 
+    const maxDrawCount = Math.min(MAX_DISCARD_DRAW_COUNT, MAX_HAND_SIZE - state.playerCards.length);
     let drawnCards = 0;
-    while (drawnCards < selectedCards.length) {
+    while (drawnCards < maxDrawCount) {
       const beforeDrawCount = state.drawPile.length;
       drawToPlayer();
       const afterDrawCount = state.drawPile.length;
@@ -1110,7 +1500,7 @@ function discardSelectedCards() {
       return;
     }
 
-    state.message = drawnCards === selectedCards.length
+    state.message = drawnCards === maxDrawCount
       ? `${selectedCards.length} Karte(n) abgeworfen und ${drawnCards} nachgezogen. Abwerfen ${state.discardsThisRound}/${state.maxDiscardsPerRound}.`
       : `${selectedCards.length} Karte(n) abgeworfen. Nur ${drawnCards} Karte(n) im Deck gefunden. Abwerfen ${state.discardsThisRound}/${state.maxDiscardsPerRound}.`;
     render();
@@ -1118,23 +1508,24 @@ function discardSelectedCards() {
   }, CARD_EXIT_ANIMATION_MS);
 }
 
-function damageDealer(amount) {
+function damageDealer(amount, comboBonus = null) {
+  const comboMessage = getComboBonusMessage(comboBonus);
   state.dealer.hp = Math.max(0, state.dealer.hp - amount);
 
   if (state.dealer.hp <= 0) {
     state.phase = "victoryCardEffect";
-    state.message = `Dealer besiegt! +${state.rewardCoins} Münzen.`;
+    state.message = `Dealer besiegt! +${state.rewardCoins} Münzen.${comboMessage}`;
     state.dealerCards.forEach((card) => {
       card.hidden = false;
     });
     animateCardsBeforeResult("dealer-defeat", state.dealerCards, () => {
-      winCombat(`Dealer besiegt! +${state.rewardCoins} Münzen.`);
+      winCombat(`Dealer besiegt! +${state.rewardCoins} Münzen.${comboMessage}`);
     });
     return;
   }
 
   const dealerDamage = getHandPower(state.dealerCards);
-  damagePlayer(dealerDamage);
+  damagePlayer(dealerDamage, comboBonus);
 
   if (state.phase !== "combat") {
     return;
@@ -1145,28 +1536,29 @@ function damageDealer(amount) {
   clearEnteringCardsSoon();
   state.hoveredTemplateId = state.playerCards[0]?.templateId || null;
   if (state.playerCards.length === 0) {
-    state.message = `${amount} Schaden verursacht, aber du hast keine Karten mehr. Kampf verloren.`;
+    state.message = `${amount} Schaden verursacht, aber du hast keine Karten mehr. Kampf verloren.${comboMessage}`;
     startResultEffect("defeat");
     render();
     return;
   }
 
   if (state.playsThisRound >= state.maxPlaysPerRound) {
-    loseCombat(`${amount} Schaden verursacht, aber du hast alle Spielzüge verbraucht. Kampf verloren.`);
+    loseCombat(`${amount} Schaden verursacht, aber du hast alle Spielzüge verbraucht. Kampf verloren.${comboMessage}`);
     render();
     return;
   }
 
-  state.message = `${amount} Schaden verursacht. Dealer kontert mit ${dealerDamage} Schaden. Spielen ${state.playsThisRound}/${state.maxPlaysPerRound}, Abwerfen ${state.discardsThisRound}/${state.maxDiscardsPerRound}.`;
+  state.message = `${amount} Schaden verursacht. Dealer kontert mit ${dealerDamage} Schaden. Spielen ${state.playsThisRound}/${state.maxPlaysPerRound}, Abwerfen ${state.discardsThisRound}/${state.maxDiscardsPerRound}.${comboMessage}`;
   render();
 }
 
-function damagePlayer(amount) {
+function damagePlayer(amount, comboBonus = null) {
+  const comboMessage = getComboBonusMessage(comboBonus);
   state.player.hp = Math.max(0, state.player.hp - amount);
 
   if (state.player.hp <= 0) {
     state.phase = "defeatCardEffect";
-    state.message = `Du wurdest besiegt. Dealer hat ${amount} Schaden gemacht.`;
+    state.message = `Du wurdest besiegt. Dealer hat ${amount} Schaden gemacht.${comboMessage}`;
     state.selectedCardIds = [];
     animateCardsBeforeResult("player-defeat", state.playerCards, () => {
       startResultEffect("defeat");
@@ -1257,8 +1649,10 @@ function winCombat(message = `Gewonnen! +${state.rewardCoins} Münzen.`) {
       return;
     }
 
+    const shopStock = buildShopStock();
     state.phase = "shop";
-    state.shopOffers = buildShopOffers();
+    state.shopOffers = shopStock.offers;
+    state.shopItemOffer = shopStock.itemOffer;
     state.boosterChoice = null;
     state.message = "Willkommen im Shop.";
     state.resultEffect = null;
@@ -1272,8 +1666,10 @@ function continueToShop() {
     return;
   }
 
+  const shopStock = buildShopStock();
   state.phase = "shop";
-  state.shopOffers = buildShopOffers();
+  state.shopOffers = shopStock.offers;
+  state.shopItemOffer = shopStock.itemOffer;
   state.boosterChoice = null;
   state.message = "Willkommen im Shop.";
   render();
@@ -1338,6 +1734,53 @@ function chooseBoosterCard(index) {
   render();
 }
 
+function skipBoosterChoice() {
+  if (state.phase !== "shop" || !state.boosterChoice) {
+    return;
+  }
+
+  const booster = BOOSTER_TYPES[state.boosterChoice.boosterId];
+  state.boosterChoice = null;
+  state.message = `${booster.label} übersprungen.`;
+  triggerScreenShake();
+  render();
+}
+
+function hasFreeInventorySlot() {
+  return state.inventoryItems.length < INVENTORY_SLOT_COUNT;
+}
+
+function buyShopItem() {
+  if (state.phase !== "shop" || state.boosterChoice) {
+    return;
+  }
+
+  const offer = state.shopItemOffer;
+  if (!offer || offer.isSold) {
+    return;
+  }
+
+  if (!hasFreeInventorySlot()) {
+    state.message = "Inventar voll. Verbrauche erst ein Item.";
+    render();
+    return;
+  }
+
+  if (state.coins < offer.cost) {
+    state.message = "Nicht genug Münzen.";
+    render();
+    return;
+  }
+
+  const item = ITEM_TYPES[offer.itemId];
+  state.coins -= offer.cost;
+  state.inventoryItems.push({ itemId: offer.itemId });
+  offer.isSold = true;
+  state.message = `${item.label} gekauft.`;
+  triggerScreenShake();
+  render();
+}
+
 function rerollShopOffers() {
   if (state.phase !== "shop" || state.boosterChoice) {
     return;
@@ -1350,7 +1793,9 @@ function rerollShopOffers() {
   }
 
   state.coins -= SHOP_REROLL_COST;
-  state.shopOffers = buildShopOffers();
+  const shopStock = buildShopStock();
+  state.shopOffers = shopStock.offers;
+  state.shopItemOffer = shopStock.itemOffer;
   state.message = `Shop aktualisiert. -${SHOP_REROLL_COST}.`;
   triggerScreenShake();
   render();
@@ -1374,14 +1819,105 @@ function openDeckPanel() {
 
   state.isDeckOpen = true;
   const firstCard = getCurrentDeckCards()[0];
-  state.deckHoveredTemplateId = firstCard?.templateId || null;
-  state.deckHoveredTier = firstCard?.tier || CARD_TIER_MIN;
+  state.hoveredTemplateId = firstCard?.templateId || null;
+  state.hoveredTier = firstCard?.tier || CARD_TIER_MIN;
+  renderPreview();
   renderDeckPanel();
 }
 
 function closeDeckPanel() {
   state.isDeckOpen = false;
   renderDeckPanel();
+}
+
+function openTrashItem(slotIndex) {
+  const inventoryItem = state.inventoryItems[slotIndex];
+  if (!inventoryItem || inventoryItem.itemId !== "trash" || state.isActionLocked) {
+    return;
+  }
+
+  if (state.runDeck.length < TRASH_ITEM_MIN_REMOVE_COUNT) {
+    state.message = "Dein Deck hat keine Karten mehr.";
+    render();
+    return;
+  }
+
+  state.activeTrashItemSlotIndex = slotIndex;
+  state.trashSelectedDeckEntryIds = [];
+  state.isDeckOpen = false;
+  state.hoveredTemplateId = state.runDeck[0]?.templateId || null;
+  state.hoveredTier = state.runDeck[0]?.tier || CARD_TIER_MIN;
+  render();
+}
+
+function closeTrashItemPanel() {
+  state.activeTrashItemSlotIndex = null;
+  state.trashSelectedDeckEntryIds = [];
+  render();
+}
+
+function toggleTrashDeckSelection(deckEntryId) {
+  if (state.activeTrashItemSlotIndex === null) {
+    return;
+  }
+
+  if (state.trashSelectedDeckEntryIds.includes(deckEntryId)) {
+    state.trashSelectedDeckEntryIds = state.trashSelectedDeckEntryIds.filter((id) => id !== deckEntryId);
+  } else {
+    if (state.trashSelectedDeckEntryIds.length >= TRASH_ITEM_REMOVE_COUNT) {
+      state.message = `Du kannst nur ${TRASH_ITEM_REMOVE_COUNT} Karten entfernen.`;
+      render();
+      return;
+    }
+    state.trashSelectedDeckEntryIds.push(deckEntryId);
+  }
+
+  playCardSelectSound();
+  renderTrashItemPanel();
+}
+
+function previewTrashDeckCard(card) {
+  state.hoveredTemplateId = card.templateId;
+  state.hoveredTier = card.tier;
+  renderPreview();
+}
+
+function confirmTrashItemUse() {
+  const slotIndex = state.activeTrashItemSlotIndex;
+  const selectedIds = state.trashSelectedDeckEntryIds;
+
+  if (slotIndex === null || !state.inventoryItems[slotIndex]) {
+    closeTrashItemPanel();
+    return;
+  }
+
+  if (selectedIds.length < TRASH_ITEM_MIN_REMOVE_COUNT || selectedIds.length > TRASH_ITEM_REMOVE_COUNT) {
+    state.message = `Wähle 1 bis ${TRASH_ITEM_REMOVE_COUNT} Karten.`;
+    render();
+    return;
+  }
+
+  const selectedIdSet = new Set(selectedIds);
+  state.runDeck = state.runDeck.filter((entry) => !selectedIdSet.has(entry.deckEntryId));
+  state.drawPile = state.drawPile.filter((card) => !selectedIdSet.has(card.deckEntryId));
+  state.discardPile = state.discardPile.filter((card) => !selectedIdSet.has(card.deckEntryId));
+  state.playerCards = state.playerCards.filter((card) => !selectedIdSet.has(card.deckEntryId));
+  state.selectedCardIds = state.selectedCardIds.filter((id) => state.playerCards.some((card) => card.instanceId === id));
+  state.inventoryItems.splice(slotIndex, 1);
+  state.activeTrashItemSlotIndex = null;
+  state.trashSelectedDeckEntryIds = [];
+  state.hoveredTemplateId = state.playerCards[0]?.templateId || state.runDeck[0]?.templateId || null;
+  state.hoveredTier = state.playerCards[0]?.tier || state.runDeck[0]?.tier || CARD_TIER_MIN;
+  state.message = `${selectedIds.length} Karte(n) aus deinem Deck entfernt.`;
+
+  if (state.runDeck.length === 0) {
+    loseCombat("Du hast keine Karten mehr im Deck. Kampf verloren.");
+    render();
+    return;
+  }
+
+  triggerScreenShake();
+  render();
 }
 
 function toggleCardSelection(card) {
@@ -1426,6 +1962,7 @@ function createCardElement(template, options = {}) {
   }
   if (options.isEntering) {
     article.classList.add("is-entering");
+    article.style.setProperty("--deal-delay", `${(options.enteringIndex || 0) * CARD_DEAL_STAGGER_MS}ms`);
   }
   if (options.animationType) {
     article.classList.add(`is-${options.animationType}`);
@@ -1491,13 +2028,15 @@ function renderCards(node, cards, hideHidden, options = {}) {
   node.innerHTML = "";
   cards.forEach((card) => {
     const template = CARD_LIBRARY[card.templateId];
+    const enteringIndex = state.enteringCardIds.indexOf(card.instanceId);
     node.appendChild(createCardElement(template, {
       hidden: hideHidden && card.hidden,
       card,
       selectable: options.selectable,
       selected: state.selectedCardIds.includes(card.instanceId),
       tier: card.tier,
-      isEntering: state.enteringCardIds.includes(card.instanceId),
+      isEntering: enteringIndex >= 0,
+      enteringIndex,
       animationType: state.animatingCardIds.includes(card.instanceId)
         ? state.cardAnimationType
         : null
@@ -1519,24 +2058,7 @@ function renderPreview() {
 
   els.previewSlot.appendChild(createCardElement(template, { interactive: false, tier }));
   els.previewTitle.textContent = getCardDisplayName(template, tier);
-  els.previewText.textContent = getCardDescription(template, tier);
-}
-
-function renderDeckPreview() {
-  els.deckPreviewSlot.innerHTML = "";
-  const templateId = state.deckHoveredTemplateId;
-  const template = templateId ? CARD_LIBRARY[templateId] : null;
-  const tier = state.deckHoveredTier || CARD_TIER_MIN;
-
-  if (!template) {
-    els.deckPreviewTitle.textContent = "Hover Card";
-    els.deckPreviewText.textContent = "";
-    return;
-  }
-
-  els.deckPreviewSlot.appendChild(createCardElement(template, { interactive: false, tier }));
-  els.deckPreviewTitle.textContent = getCardDisplayName(template, tier);
-  els.deckPreviewText.textContent = `${template.typeLabel}${tier > CARD_TIER_MIN ? ` · Stufe ${tier}` : ""} · ${template.value} Schaden`;
+  els.previewText.innerHTML = getCardDetailsMarkup(template, tier);
 }
 
 function renderDeckPanel() {
@@ -1545,11 +2067,6 @@ function renderDeckPanel() {
   els.deckPanel.classList.toggle("is-hidden", !state.isDeckOpen);
   els.deckSummary.textContent = `${state.drawPile.length} Deck · ${state.playerCards.length} Hand · ${state.discardPile.length} Abgelegt`;
   els.deckList.innerHTML = "";
-
-  if (!cards.some((card) => card.templateId === state.deckHoveredTemplateId && card.tier === state.deckHoveredTier)) {
-    state.deckHoveredTemplateId = cards[0]?.templateId || null;
-    state.deckHoveredTier = cards[0]?.tier || CARD_TIER_MIN;
-  }
 
   cards.forEach((card) => {
     const template = CARD_LIBRARY[card.templateId];
@@ -1569,31 +2086,26 @@ function renderDeckPanel() {
       </div>
     `;
     item.querySelector(".deck-list-card").appendChild(createCardElement(template, { interactive: false, tier: card.tier }));
-    item.addEventListener("pointerenter", () => {
-      state.deckHoveredTemplateId = template.id;
-      state.deckHoveredTier = card.tier;
-      renderDeckPreview();
-    });
-    item.addEventListener("focus", () => {
-      state.deckHoveredTemplateId = template.id;
-      state.deckHoveredTier = card.tier;
-      renderDeckPreview();
-    });
-    item.addEventListener("click", () => {
-      state.deckHoveredTemplateId = template.id;
-      state.deckHoveredTier = card.tier;
-      renderDeckPreview();
-    });
+    const updateMainPreview = () => {
+      state.hoveredTemplateId = template.id;
+      state.hoveredTier = card.tier;
+      renderPreview();
+    };
+    item.addEventListener("pointerenter", updateMainPreview);
+    item.addEventListener("focus", updateMainPreview);
+    item.addEventListener("click", updateMainPreview);
     els.deckList.appendChild(item);
   });
-
-  renderDeckPreview();
 }
 
 function renderShopOffers() {
   els.shopOffers.innerHTML = "";
 
-  state.shopOffers.forEach((offer, index) => {
+  const visibleBoosterOffers = state.shopItemOffer
+    ? state.shopOffers.slice(0, SHOP_OFFER_COUNT - 1)
+    : state.shopOffers.slice(0, SHOP_OFFER_COUNT);
+
+  visibleBoosterOffers.forEach((offer, index) => {
     const booster = BOOSTER_TYPES[offer.boosterId];
     const item = document.createElement("article");
     item.className = "shop-card offer-card";
@@ -1615,12 +2127,116 @@ function renderShopOffers() {
     buyButton.addEventListener("click", () => buyShopOffer(index));
     els.shopOffers.appendChild(item);
   });
+
+  const offer = state.shopItemOffer;
+  if (!offer) {
+    return;
+  }
+
+  const itemType = ITEM_TYPES[offer.itemId];
+  const shopItem = document.createElement("article");
+  shopItem.className = "shop-card offer-card item-offer-card";
+  const inventoryFull = !hasFreeInventorySlot();
+  const buttonLabel = offer.isSold
+    ? "Gekauft"
+    : inventoryFull
+      ? "Inventar voll"
+      : createCoinCostMarkup(offer.cost);
+
+  shopItem.innerHTML = `
+    <div class="shop-card-preview item-card-preview">
+      <img class="shop-item-image" src="${itemType.sprite}" alt="${itemType.label}">
+    </div>
+    <div class="shop-card-copy">
+      <strong>${itemType.label}</strong>
+      <span>${itemType.description}</span>
+    </div>
+    <button class="control-button ${offer.isSold || inventoryFull ? "ghost" : "alt"}" type="button">
+      ${buttonLabel}
+    </button>
+  `;
+
+  const buyButton = shopItem.querySelector("button");
+  buyButton.disabled = Boolean(state.boosterChoice) || offer.isSold || inventoryFull || state.coins < offer.cost;
+  buyButton.addEventListener("click", buyShopItem);
+  els.shopOffers.appendChild(shopItem);
+}
+
+function renderInventorySlots() {
+  els.inventorySlots.innerHTML = "";
+
+  for (let slotIndex = 0; slotIndex < INVENTORY_SLOT_COUNT; slotIndex += 1) {
+    const inventoryItem = state.inventoryItems[slotIndex];
+    const itemType = inventoryItem ? ITEM_TYPES[inventoryItem.itemId] : null;
+    const slot = document.createElement(itemType ? "button" : "div");
+    slot.className = `inventory-slot${itemType ? " has-item" : ""}`;
+    slot.setAttribute("aria-label", itemType ? `${itemType.label} benutzen` : "Leerer Inventarplatz");
+
+    if (!itemType) {
+      slot.setAttribute("aria-hidden", "true");
+    } else {
+      slot.type = "button";
+      slot.innerHTML = `<img src="${itemType.sprite}" alt="${itemType.label}" draggable="false">`;
+      slot.addEventListener("click", () => openTrashItem(slotIndex));
+    }
+
+    els.inventorySlots.appendChild(slot);
+  }
+}
+
+function renderTrashItemPanel() {
+  const isOpen = state.activeTrashItemSlotIndex !== null;
+  els.trashItemPanel.classList.toggle("is-hidden", !isOpen);
+  els.trashItemDeckList.innerHTML = "";
+
+  if (!isOpen) {
+    return;
+  }
+
+  els.trashItemSummary.textContent = `${state.trashSelectedDeckEntryIds.length}/${TRASH_ITEM_REMOVE_COUNT} Karten ausgewählt`;
+  els.confirmTrashItemButton.disabled = state.trashSelectedDeckEntryIds.length < TRASH_ITEM_MIN_REMOVE_COUNT;
+
+  state.runDeck.forEach((card) => {
+    const template = CARD_LIBRARY[card.templateId];
+    const item = document.createElement("article");
+    const isSelected = state.trashSelectedDeckEntryIds.includes(card.deckEntryId);
+    item.className = `deck-list-item${isSelected ? " is-selected" : ""}`;
+    item.setAttribute("role", "button");
+    item.setAttribute("tabindex", "0");
+    item.innerHTML = `
+      <div class="deck-list-card"></div>
+      <div class="deck-list-meta">
+        <strong>${getCardDisplayName(template, card.tier)}</strong>
+        <span>
+          <b>${template.typeLabel}</b>
+          ${card.tier > CARD_TIER_MIN ? `<b>STUFE ${card.tier}</b>` : ""}
+          <b>${template.value}</b>
+        </span>
+      </div>
+    `;
+    item.querySelector(".deck-list-card").appendChild(createCardElement(template, { interactive: false, tier: card.tier }));
+    item.addEventListener("pointerenter", () => previewTrashDeckCard(card));
+    item.addEventListener("focus", () => previewTrashDeckCard(card));
+    item.addEventListener("click", () => {
+      previewTrashDeckCard(card);
+      toggleTrashDeckSelection(card.deckEntryId);
+    });
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        previewTrashDeckCard(card);
+        toggleTrashDeckSelection(card.deckEntryId);
+      }
+    });
+    els.trashItemDeckList.appendChild(item);
+  });
 }
 
 function renderBoosterChoices() {
   const choice = state.boosterChoice;
   els.boosterChoicePanel.classList.toggle("is-hidden", !choice);
   els.boosterChoices.innerHTML = "";
+  els.skipBoosterChoiceButton.disabled = !choice;
 
   if (!choice) {
     return;
@@ -1676,6 +2292,28 @@ function renderDamageCountOverlay() {
   `;
 }
 
+function renderComboSelectionOverlay(comboBonus) {
+  if (!comboBonus || comboBonus.coins <= 0 || state.phase !== "combat" || state.isActionLocked) {
+    els.comboSelectionOverlay.classList.remove("is-active");
+    els.comboSelectionOverlay.innerHTML = "";
+    return;
+  }
+
+  const bonusMarkup = comboBonus.bonuses
+    .map((bonus) => `<span>${bonus.label}</span>`)
+    .join("");
+
+  els.comboSelectionOverlay.classList.add("is-active");
+  els.comboSelectionOverlay.innerHTML = `
+    <div class="combo-selection-label">Combo</div>
+    <div class="combo-selection-bonuses">${bonusMarkup}</div>
+    <div class="combo-selection-total">
+      <span>+${comboBonus.coins}</span>
+      <img src="${COIN_ICON_SRC}" alt="Coins">
+    </div>
+  `;
+}
+
 function renderFieldTheme() {
   const theme = FIELD_THEMES[state.fieldThemeId] || FIELD_THEMES.normal;
   els.battleFelt.className = `felt field-theme-${theme.id}`;
@@ -1685,6 +2323,7 @@ function renderFieldTheme() {
 function render() {
   const selectedCards = state.playerCards.filter((card) => state.selectedCardIds.includes(card.instanceId));
   const selectedPower = getHandPower(selectedCards);
+  const selectedComboBonus = getPlayedCardComboBonus(selectedCards);
   const dealerPower = state.phase === "combat" ? getHandPower(state.dealerCards) : 0;
   const playerHpPercent = state.player.maxHp > 0
     ? (state.player.hp / state.player.maxHp) * 100
@@ -1722,7 +2361,9 @@ function render() {
         ? "Besiegt"
         : "Kampf";
   els.rewardLabel.textContent = String(state.rewardCoins);
-  els.messageBanner.textContent = state.message;
+  if (els.messageBanner) {
+    els.messageBanner.textContent = state.message;
+  }
 
   els.playerStatusLabel.textContent =
     state.phase === "shop"
@@ -1751,6 +2392,11 @@ function render() {
     || selectedCards.length === 0
     || state.isActionLocked
     || state.discardsThisRound >= state.maxDiscardsPerRound;
+  const isHandSortDisabled = state.phase !== "combat" || state.isActionLocked || state.playerCards.length < 2;
+  els.sortHandRankButton.disabled = isHandSortDisabled;
+  els.sortHandSuitButton.disabled = isHandSortDisabled;
+  els.sortHandTypeButton.disabled = isHandSortDisabled;
+  els.sortHandTierButton.disabled = isHandSortDisabled;
   els.shopRerollButton.disabled = state.phase !== "shop" || Boolean(state.boosterChoice) || state.coins < SHOP_REROLL_COST;
   els.shopNextFightButton.disabled = state.phase === "shop" && Boolean(state.boosterChoice);
   els.nextFightButton.classList.add("is-hidden");
@@ -1770,31 +2416,44 @@ function render() {
 
   renderShopOffers();
   renderBoosterChoices();
+  renderInventorySlots();
   renderCards(els.playerCards, state.playerCards, false, { selectable: true });
   renderCards(els.dealerCards, state.dealerCards, true);
   renderDamageCountOverlay();
+  renderComboSelectionOverlay(selectedComboBonus);
   renderPreview();
   renderDeckPanel();
+  renderTrashItemPanel();
 }
 
 els.playSelectedButton.addEventListener("click", playSelectedCards);
 els.discardSelectedButton.addEventListener("click", discardSelectedCards);
+els.sortHandRankButton.addEventListener("click", () => sortPlayerHand("rank"));
+els.sortHandSuitButton.addEventListener("click", () => sortPlayerHand("suit"));
+els.sortHandTypeButton.addEventListener("click", () => sortPlayerHand("type"));
+els.sortHandTierButton.addEventListener("click", () => sortPlayerHand("tier"));
 els.debugWinButton.addEventListener("click", () => winCombat());
 els.debugCoinsButton.addEventListener("click", addDebugCoins);
 els.nextFightButton.addEventListener("click", startRound);
 els.shopNextFightButton.addEventListener("click", startRound);
 els.shopRerollButton.addEventListener("click", rerollShopOffers);
 els.continueToShopButton.addEventListener("click", continueToShop);
+els.skipBoosterChoiceButton.addEventListener("click", skipBoosterChoice);
 els.restartRunButton.addEventListener("click", resetGame);
 els.defeatMainMenuButton.addEventListener("click", returnToMainMenu);
 els.ingameMainMenuButton.addEventListener("click", returnToMainMenu);
 els.resetButton.addEventListener("click", resetGame);
 els.deckButton.addEventListener("click", openDeckPanel);
 els.closeDeckButton.addEventListener("click", closeDeckPanel);
+els.confirmTrashItemButton.addEventListener("click", confirmTrashItemUse);
+els.cancelTrashItemButton.addEventListener("click", closeTrashItemPanel);
 els.startGameButton.addEventListener("click", startGameFromMenu);
 els.settingsMenuButton.addEventListener("click", openSettingsMenu);
 els.profileMenuButton.addEventListener("click", openProfileMenu);
 els.closeSettingsButton.addEventListener("click", () => els.settingsMenuPanel.classList.add("is-hidden"));
+els.musicToggle.addEventListener("change", (event) => setMusicEnabled(event.target.checked));
+els.effectsToggle.addEventListener("change", (event) => setEffectsEnabled(event.target.checked));
+els.shakeToggle.addEventListener("change", (event) => setShakeEnabled(event.target.checked));
 els.closeProfileButton.addEventListener("click", () => els.profileMenuPanel.classList.add("is-hidden"));
 els.createProfileButton.addEventListener("click", createProfile);
 els.downloadProfileButton.addEventListener("click", downloadProfileSave);
@@ -1815,6 +2474,7 @@ document.addEventListener("click", (event) => {
   }
 });
 
+loadAudioSettings();
 initSoundtrack();
 updateProfileUi();
 showMainMenu();
