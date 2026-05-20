@@ -177,8 +177,92 @@
               </div>
 
               <p id="deckSummary" class="deck-summary">0 Karten</p>
+              <div class="hand-sort-controls deck-sort-controls" aria-label="Deck sortieren">
+                <button id="sortDeckRankButton" class="hand-sort-button" type="button">RANG</button>
+                <button id="sortDeckSuitButton" class="hand-sort-button" type="button">FARBE</button>
+                <button id="sortDeckTypeButton" class="hand-sort-button" type="button">TYP</button>
+                <button id="sortDeckTierButton" class="hand-sort-button" type="button">STUFE</button>
+              </div>
               <div class="deck-content">
                 <div id="deckList" class="deck-list"></div>
+              </div>
+            </div>
+          </section>
+
+          <section id="combosPanel" class="deck-screen is-hidden">
+            <div class="deck-window combos-window">
+              <div class="deck-head">
+                <div>
+                  <h2>COMBOS</h2>
+                  <p class="deck-summary">Kombiniere Kartenwerte, Farben und Spezialtypen. Mehrere passende Combos werden addiert.</p>
+                </div>
+                <button id="closeCombosButton" class="control-button close-deck-button" aria-label="Combos schlieÃŸen">X</button>
+              </div>
+
+              <div class="combos-grid">
+                <article class="combo-info-card combo-standard">
+                  <div class="combo-info-head">
+                    <span>Rang</span>
+                    <strong>Paar</strong>
+                  </div>
+                  <p>2 Karten mit gleichem Rang geben Bonus-Coins.</p>
+                  <em>Beispiel: 5 + 5</em>
+                </article>
+                <article class="combo-info-card combo-standard">
+                  <div class="combo-info-head">
+                    <span>Rang</span>
+                    <strong>Drilling</strong>
+                  </div>
+                  <p>3 Karten mit gleichem Rang geben mehr Bonus-Coins.</p>
+                  <em>Beispiel: K + K + K</em>
+                </article>
+                <article class="combo-info-card combo-standard">
+                  <div class="combo-info-head">
+                    <span>Farbe</span>
+                    <strong>Flush</strong>
+                  </div>
+                  <p>3 Karten derselben Farbe geben Bonus-Coins.</p>
+                  <em>Beispiel: 3x Herz</em>
+                </article>
+                <article class="combo-info-card combo-theme">
+                  <div class="combo-info-head">
+                    <span>Typ</span>
+                    <strong>Thema</strong>
+                  </div>
+                  <p>3 Spezialkarten desselben Typs geben Coins und lösen ihren Typ-Effekt aus.</p>
+                  <em>Höhere Stufen verstärken den Effekt.</em>
+                </article>
+              </div>
+
+              <div class="theme-combo-list">
+                <article class="theme-combo-card card-void">
+                  <strong>VOID</strong>
+                  <p>Extra Schaden, aber du verlierst HP.</p>
+                </article>
+                <article class="theme-combo-card card-elemental">
+                  <strong>ELEMENTAL</strong>
+                  <p>Extra Schaden und reduziert den Dealer-Konter.</p>
+                </article>
+                <article class="theme-combo-card card-magical">
+                  <strong>MAGISCH</strong>
+                  <p>Zieht Bonuskarten nach dem normalen Auffüllen.</p>
+                </article>
+                <article class="theme-combo-card card-dark">
+                  <strong>DUNKEL</strong>
+                  <p>Extra Schaden basierend auf fehlenden HP.</p>
+                </article>
+                <article class="theme-combo-card card-holy">
+                  <strong>HEILIG</strong>
+                  <p>Heilt dich und reduziert den Dealer-Konter.</p>
+                </article>
+                <article class="theme-combo-card card-golden">
+                  <strong>GOLDEN</strong>
+                  <p>Gibt extra Coins.</p>
+                </article>
+                <article class="theme-combo-card card-cursed">
+                  <strong>VERFLUCHT</strong>
+                  <p>Sehr hoher Schaden, wirft aber zufällig eine Handkarte ab.</p>
+                </article>
               </div>
             </div>
           </section>
@@ -202,7 +286,10 @@
         </section>
 
       <aside class="side-panel">
-          <button id="ingameMainMenuButton" class="deck-button main-menu-return-button">Hauptmenü</button>
+          <div class="ingame-action-row">
+            <button id="ingameMainMenuButton" class="deck-button main-menu-return-button">Hauptmenü</button>
+            <button id="ingameSettingsButton" class="ingame-settings-button" type="button" aria-label="Einstellungen">&#9881;</button>
+          </div>
 
           <section class="audio-panel" aria-label="Soundtrack Steuerung">
             <div class="audio-head">
@@ -245,6 +332,7 @@
           </section>
 
           <button id="deckButton" class="deck-button">Deck ansehen</button>
+          <button id="combosButton" class="deck-button combos-button">Combos</button>
         </aside>
       </main>
 
@@ -294,7 +382,7 @@
             <strong>Ein / Aus</strong>
           </label>
           <label class="settings-toggle" for="effectsToggle">
-            <span>Effekte</span>
+            <span>UI Effekte</span>
             <input id="effectsToggle" type="checkbox" checked>
             <strong>Ein / Aus</strong>
           </label>

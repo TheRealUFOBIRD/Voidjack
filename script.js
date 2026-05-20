@@ -226,6 +226,81 @@ const COMBO_PAIR_BONUS_COINS = 2;
 const COMBO_TRIPLE_BONUS_COINS = 5;
 const COMBO_FLUSH_BONUS_COINS = 4;
 const COMBO_THEME_TRIPLE_BONUS_COINS = 10;
+const THEME_EFFECT_TIER_STEP = 1;
+const THEME_EFFECT_CONFIG = {
+  void: {
+    summary: "Riskanter Burst-Schaden gegen eigene HP.",
+    stats: [
+      { label: "Schaden", value: "+12", scaling: "+2 pro Bonusstufe" },
+      { label: "Kosten", value: "-4 HP", scaling: "-1 HP je 3 Bonusstufen" }
+    ],
+    apply(effect, tierBoost) {
+      effect.damageBonus = 12 + (tierBoost * 2);
+      effect.selfDamage = 4 + Math.floor(tierBoost / 3);
+    }
+  },
+  elemental: {
+    summary: "Zusatzschaden und schwächerer Dealer-Konter.",
+    stats: [
+      { label: "Schaden", value: "+5", scaling: "+1 pro Bonusstufe" },
+      { label: "Dealer", value: "-2 Schaden", scaling: "-1 je 2 Bonusstufen" }
+    ],
+    apply(effect, tierBoost) {
+      effect.damageBonus = 5 + tierBoost;
+      effect.dealerDamageReduction = 2 + Math.floor(tierBoost / 2);
+    }
+  },
+  magical: {
+    summary: "Zieht Bonuskarten nach dem normalen Auffüllen.",
+    stats: [
+      { label: "Ziehen", value: "+1 Karte", scaling: "+1 je 5 Bonusstufen, max. 3" }
+    ],
+    apply(effect, tierBoost) {
+      effect.drawCards = Math.min(3, 1 + Math.floor(tierBoost / 5));
+    }
+  },
+  dark: {
+    summary: "Wird stärker, wenn dir HP fehlen.",
+    stats: [
+      { label: "Schaden", value: "+1 je 3 fehlende HP", scaling: "+2 pro Bonusstufe" }
+    ],
+    apply(effect, tierBoost) {
+      const missingHp = Math.max(0, state.player.maxHp - state.player.hp);
+      effect.damageBonus = Math.floor(missingHp / 3) + (tierBoost * 2);
+    }
+  },
+  holy: {
+    summary: "Heilt dich und schützt vor dem Dealer-Konter.",
+    stats: [
+      { label: "Heilung", value: "+3 HP", scaling: "+1 pro Bonusstufe" },
+      { label: "Dealer", value: "-6 Schaden", scaling: "-1 pro Bonusstufe" }
+    ],
+    apply(effect, tierBoost) {
+      effect.heal = 3 + tierBoost;
+      effect.dealerDamageReduction = 6 + tierBoost;
+    }
+  },
+  golden: {
+    summary: "Direkte Economy-Belohnung.",
+    stats: [
+      { label: "Coins", value: "+8", scaling: "+2 pro Bonusstufe" }
+    ],
+    apply(effect, tierBoost) {
+      effect.coins = 8 + (tierBoost * 2);
+    }
+  },
+  cursed: {
+    summary: "Sehr hoher Schaden mit Kontrollverlust.",
+    stats: [
+      { label: "Schaden", value: "+18", scaling: "+3 pro Bonusstufe" },
+      { label: "Nachteil", value: "1 Handkarte", scaling: "zufällig abwerfen" }
+    ],
+    apply(effect, tierBoost) {
+      effect.damageBonus = 18 + (tierBoost * 3);
+      effect.discardRandomCards = 1;
+    }
+  }
+};
 const INVENTORY_SLOT_COUNT = 3;
 const TRASH_ITEM_REMOVE_COUNT = 2;
 const TRASH_ITEM_MIN_REMOVE_COUNT = 1;
@@ -235,6 +310,7 @@ const STARTING_VOLUME = 5;
 const CARD_EXIT_ANIMATION_MS = 360;
 const CARD_DEAL_ANIMATION_MS = 220;
 const CARD_DEAL_STAGGER_MS = 45;
+const CARD_SORT_ANIMATION_MS = 180;
 const DAMAGE_COUNT_STEP_MS = 520;
 const DAMAGE_COUNT_FINAL_HOLD_MS = 620;
 const RESULT_CARD_ANIMATION_MS = 760;
@@ -273,6 +349,8 @@ const state = {
   inventoryItems: [],
   boosterChoice: null,
   isDeckOpen: false,
+  isCombosOpen: false,
+  deckSortMode: "rank",
   activeTrashItemSlotIndex: null,
   trashSelectedDeckEntryIds: [],
   fieldThemeId: "normal",
@@ -353,9 +431,17 @@ const els = {
   restartRunButton: document.getElementById("restartRunButton"),
   defeatMainMenuButton: document.getElementById("defeatMainMenuButton"),
   ingameMainMenuButton: document.getElementById("ingameMainMenuButton"),
+  ingameSettingsButton: document.getElementById("ingameSettingsButton"),
   deckButton: document.getElementById("deckButton"),
+  combosButton: document.getElementById("combosButton"),
   deckPanel: document.getElementById("deckPanel"),
   closeDeckButton: document.getElementById("closeDeckButton"),
+  combosPanel: document.getElementById("combosPanel"),
+  closeCombosButton: document.getElementById("closeCombosButton"),
+  sortDeckRankButton: document.getElementById("sortDeckRankButton"),
+  sortDeckSuitButton: document.getElementById("sortDeckSuitButton"),
+  sortDeckTypeButton: document.getElementById("sortDeckTypeButton"),
+  sortDeckTierButton: document.getElementById("sortDeckTierButton"),
   soundtrackAudio: document.getElementById("soundtrackAudio"),
   volumeSlider: document.getElementById("volumeSlider"),
   volumeValueLabel: document.getElementById("volumeValueLabel"),
@@ -394,6 +480,8 @@ const els = {
   uploadProfileInput: document.getElementById("uploadProfileInput"),
   profileStatusText: document.getElementById("profileStatusText")
 };
+
+document.body.insertBefore(els.settingsMenuPanel, els.soundtrackAudio);
 
 function setSoundtrackVolume(value) {
   const volumePercent = Math.max(0, Math.min(100, Number(value) || 0));
@@ -486,26 +574,42 @@ function hideMainMenu() {
   els.profileMenuPanel.classList.add("is-hidden");
 }
 
+function closeOverlayWindows(options = {}) {
+  state.isDeckOpen = false;
+  state.isCombosOpen = false;
+  state.activeTrashItemSlotIndex = null;
+  state.trashSelectedDeckEntryIds = [];
+
+  if (!options.keepSettings) {
+    els.settingsMenuPanel.classList.add("is-hidden");
+  }
+  if (!options.keepProfile) {
+    els.profileMenuPanel.classList.add("is-hidden");
+  }
+}
+
 function returnToMainMenu() {
   saveProfileToBrowser();
   state.resultEffect = null;
   state.isActionLocked = false;
-  state.isDeckOpen = false;
+  closeOverlayWindows();
   render();
   updateProfileUi();
   showMainMenu();
 }
 
 function openSettingsMenu() {
+  closeOverlayWindows({ keepSettings: true });
   updateAudioSettingsUi();
   els.settingsMenuPanel.classList.remove("is-hidden");
-  els.profileMenuPanel.classList.add("is-hidden");
+  render();
 }
 
 function openProfileMenu() {
+  closeOverlayWindows({ keepProfile: true });
   els.profileMenuPanel.classList.remove("is-hidden");
-  els.settingsMenuPanel.classList.add("is-hidden");
   updateProfileUi();
+  render();
 }
 
 function createProfile() {
@@ -651,6 +755,7 @@ function applyProfileSave(saveGame) {
   state.isActionLocked = false;
   state.resultEffect = null;
   state.isDeckOpen = false;
+  state.isCombosOpen = false;
   state.activeTrashItemSlotIndex = null;
   state.trashSelectedDeckEntryIds = [];
 
@@ -1133,27 +1238,23 @@ function getPlayedCardComboBonus(cards) {
   const suitCounts = getCountMap(cards, (template) => template.suitId);
   const typeCounts = getCountMap(cards, (template) => template.typeId);
 
+  const addBonus = (label, coins) => {
+    bonuses.push({ label, coins });
+  };
+
   Object.entries(rankCounts).forEach(([rankId, count]) => {
     const rankLabel = rankId.toUpperCase();
     if (count >= 3) {
-      bonuses.push({
-        label: `Drilling ${rankLabel}`,
-        coins: COMBO_TRIPLE_BONUS_COINS
-      });
+      addBonus(`Drilling ${rankLabel}`, COMBO_TRIPLE_BONUS_COINS);
     } else if (count >= 2) {
-      bonuses.push({
-        label: `Paar ${rankLabel}`,
-        coins: COMBO_PAIR_BONUS_COINS
-      });
+      addBonus(`Paar ${rankLabel}`, COMBO_PAIR_BONUS_COINS);
     }
   });
 
+  // Combo-Arten bleiben additiv: dieselben Karten duerfen z.B. Drilling und Flush sein.
   Object.entries(suitCounts).forEach(([suitId, count]) => {
     if (count >= 3) {
-      bonuses.push({
-        label: `${SUITS[suitId]} Flush`,
-        coins: COMBO_FLUSH_BONUS_COINS
-      });
+      addBonus(`${SUITS[suitId]} Flush`, COMBO_FLUSH_BONUS_COINS);
     }
   });
 
@@ -1163,10 +1264,7 @@ function getPlayedCardComboBonus(cards) {
     }
 
     if (count >= 3 && CARD_TYPES[typeId]) {
-      bonuses.push({
-        label: `${CARD_TYPES[typeId].label} Thema`,
-        coins: COMBO_THEME_TRIPLE_BONUS_COINS
-      });
+      addBonus(`${CARD_TYPES[typeId].label} Thema`, COMBO_THEME_TRIPLE_BONUS_COINS);
     }
   });
 
@@ -1180,6 +1278,129 @@ function getComboBonusMessage(comboBonus) {
   }
 
   return ` Combo: ${comboBonus.bonuses.map((bonus) => bonus.label).join(" + ")}. +${comboBonus.coins} Münzen.`;
+}
+
+function getThemeEffectTierBoost(cards) {
+  return cards.reduce((sum, card) => sum + Math.max(0, clampCardTier(card.tier) - CARD_TIER_MIN), 0);
+}
+
+function getPlayedThemeEffect(cards) {
+  const typeCounts = getCountMap(cards, (template) => template.typeId);
+  const matchingType = Object.entries(typeCounts)
+    .find(([typeId, count]) => typeId !== "normal" && count >= 3 && CARD_TYPES[typeId]);
+
+  if (!matchingType) {
+    return null;
+  }
+
+  const [typeId] = matchingType;
+  const themeCards = cards.filter((card) => CARD_LIBRARY[card.templateId].typeId === typeId);
+  const tierBoost = getThemeEffectTierBoost(themeCards) * THEME_EFFECT_TIER_STEP;
+  const effect = {
+    typeId,
+    label: CARD_TYPES[typeId].label,
+    tierBoost,
+    damageBonus: 0,
+    selfDamage: 0,
+    heal: 0,
+    dealerDamageReduction: 0,
+    coins: 0,
+    drawCards: 0,
+    discardRandomCards: 0,
+    drawnCards: 0,
+    discardedCards: 0
+  };
+
+  THEME_EFFECT_CONFIG[typeId]?.apply(effect, tierBoost);
+
+  return effect;
+}
+
+function drawExtraThemeCards(count) {
+  let drawnCards = 0;
+  while (drawnCards < count) {
+    const card = drawCard();
+    if (!card) {
+      break;
+    }
+
+    state.playerCards.push(card);
+    const enteringIndex = state.enteringCardIds.length;
+    state.enteringCardIds.push(card.instanceId);
+    queueCardDealSound(enteringIndex);
+    drawnCards += 1;
+  }
+  return drawnCards;
+}
+
+function discardRandomThemeCards(count) {
+  let discardedCards = 0;
+  while (discardedCards < count && state.playerCards.length > 0) {
+    const cardIndex = Math.floor(Math.random() * state.playerCards.length);
+    const [discardedCard] = state.playerCards.splice(cardIndex, 1);
+    if (!discardedCard) {
+      break;
+    }
+
+    state.selectedCardIds = state.selectedCardIds.filter((id) => id !== discardedCard.instanceId);
+    state.discardPile.push({ ...discardedCard, discardReason: "Verflucht" });
+    discardedCards += 1;
+  }
+  return discardedCards;
+}
+
+function applyThemeEffect(themeEffect) {
+  if (!themeEffect) {
+    return null;
+  }
+
+  if (themeEffect.selfDamage > 0) {
+    state.player.hp = Math.max(0, state.player.hp - themeEffect.selfDamage);
+  }
+  if (themeEffect.heal > 0) {
+    state.player.hp = Math.min(state.player.maxHp, state.player.hp + themeEffect.heal);
+  }
+  if (themeEffect.coins > 0) {
+    state.coins += themeEffect.coins;
+  }
+  if (themeEffect.discardRandomCards > 0) {
+    themeEffect.discardedCards = discardRandomThemeCards(themeEffect.discardRandomCards);
+  }
+
+  return themeEffect;
+}
+
+function getThemeEffectMessage(themeEffect) {
+  if (!themeEffect) {
+    return "";
+  }
+
+  const parts = [];
+  if (themeEffect.damageBonus > 0) {
+    parts.push(`+${themeEffect.damageBonus} Schaden`);
+  }
+  if (themeEffect.selfDamage > 0) {
+    parts.push(`-${themeEffect.selfDamage} HP`);
+  }
+  if (themeEffect.heal > 0) {
+    parts.push(`+${themeEffect.heal} HP`);
+  }
+  if (themeEffect.dealerDamageReduction > 0) {
+    parts.push(`Dealer -${themeEffect.dealerDamageReduction} Schaden`);
+  }
+  if (themeEffect.coins > 0) {
+    parts.push(`+${themeEffect.coins} Münzen`);
+  }
+  if (themeEffect.drawCards > 0) {
+    parts.push(`${themeEffect.drawnCards}/${themeEffect.drawCards} Karte(n) gezogen`);
+  }
+  if (themeEffect.discardRandomCards > 0) {
+    parts.push(`${themeEffect.discardedCards} Karte(n) verflucht abgeworfen`);
+  }
+
+  return parts.length > 0
+    ? ` ${themeEffect.label}: ${parts.join(", ")}.`
+    : "";
 }
 
 function drawCard() {
@@ -1221,54 +1442,159 @@ function getTypeSortIndex(typeId) {
   return index >= 0 ? index : FIELD_THEME_SEQUENCE.length;
 }
 
+function getCardSortValues(card, mode) {
+  const template = CARD_LIBRARY[card.templateId];
+
+  if (mode === "suit") {
+    return [
+      getSuitSortIndex(template.suitId),
+      getRankSortIndex(template.rankId),
+      getTypeSortIndex(template.typeId),
+      card.tier
+    ];
+  }
+
+  if (mode === "type") {
+    return [
+      getTypeSortIndex(template.typeId),
+      getSuitSortIndex(template.suitId),
+      getRankSortIndex(template.rankId),
+      card.tier
+    ];
+  }
+
+  if (mode === "tier") {
+    return [
+      card.tier,
+      getTypeSortIndex(template.typeId),
+      getSuitSortIndex(template.suitId),
+      getRankSortIndex(template.rankId)
+    ];
+  }
+
+  return [
+    getRankSortIndex(template.rankId),
+    getSuitSortIndex(template.suitId),
+    getTypeSortIndex(template.typeId),
+    card.tier
+  ];
+}
+
+function compareCardsByMode(left, right, mode) {
+  const leftValues = getCardSortValues(left.card, mode);
+  const rightValues = getCardSortValues(right.card, mode);
+  const valueDifference = leftValues
+    .map((value, index) => value - rightValues[index])
+    .find((value) => value !== 0);
+
+  return valueDifference || left.index - right.index;
+}
+
+function getCardsSortedByMode(cards, mode) {
+  return cards
+    .map((card, index) => ({ card, index }))
+    .sort((left, right) => compareCardsByMode(left, right, mode))
+    .map(({ card }) => card);
+}
+
+function getPlayerCardRects() {
+  return Array.from(els.playerCards.querySelectorAll(".playing-card[data-card-id]"))
+    .reduce((rects, cardElement) => {
+      rects[cardElement.dataset.cardId] = cardElement.getBoundingClientRect();
+      return rects;
+    }, {});
+}
+
+function animatePlayerCardSort(previousRects) {
+  if (!previousRects || !Element.prototype.animate || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return;
+  }
+
+  Array.from(els.playerCards.querySelectorAll(".playing-card[data-card-id]")).forEach((cardElement) => {
+    const previousRect = previousRects[cardElement.dataset.cardId];
+    if (!previousRect) {
+      return;
+    }
+
+    const currentRect = cardElement.getBoundingClientRect();
+    const deltaX = previousRect.left - currentRect.left;
+    const deltaY = previousRect.top - currentRect.top;
+    if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
+      return;
+    }
+
+    const finalTransform = getComputedStyle(cardElement).transform;
+    const endTransform = finalTransform === "none" ? "translate3d(0, 0, 0)" : finalTransform;
+    const startTransform = `translate3d(${deltaX}px, ${deltaY}px, 0) ${endTransform}`;
+    cardElement.classList.add("is-sorting");
+    const animation = cardElement.animate(
+      [
+        { transform: startTransform },
+        { transform: endTransform }
+      ],
+      {
+        duration: CARD_SORT_ANIMATION_MS,
+        easing: "cubic-bezier(0.16, 0.84, 0.18, 1)"
+      }
+    );
+    animation.addEventListener("finish", () => cardElement.classList.remove("is-sorting"));
+    animation.addEventListener("cancel", () => cardElement.classList.remove("is-sorting"));
+  });
+}
+
+function getDeckItemRects() {
+  return Array.from(els.deckList.querySelectorAll(".deck-list-item[data-deck-entry-id]"))
+    .reduce((rects, itemElement) => {
+      rects[itemElement.dataset.deckEntryId] = itemElement.getBoundingClientRect();
+      return rects;
+    }, {});
+}
+
+function animateDeckPanelSort(previousRects) {
+  if (!previousRects || !Element.prototype.animate || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return;
+  }
+
+  Array.from(els.deckList.querySelectorAll(".deck-list-item[data-deck-entry-id]")).forEach((itemElement) => {
+    const previousRect = previousRects[itemElement.dataset.deckEntryId];
+    if (!previousRect) {
+      return;
+    }
+
+    const currentRect = itemElement.getBoundingClientRect();
+    const deltaX = previousRect.left - currentRect.left;
+    const deltaY = previousRect.top - currentRect.top;
+    if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
+      return;
+    }
+
+    itemElement.classList.add("is-sorting");
+    const animation = itemElement.animate(
+      [
+        { transform: `translate3d(${deltaX}px, ${deltaY}px, 0)` },
+        { transform: "translate3d(0, 0, 0)" }
+      ],
+      {
+        duration: CARD_SORT_ANIMATION_MS,
+        easing: "cubic-bezier(0.16, 0.84, 0.18, 1)"
+      }
+    );
+    animation.addEventListener("finish", () => itemElement.classList.remove("is-sorting"));
+    animation.addEventListener("cancel", () => itemElement.classList.remove("is-sorting"));
+  });
+}
+
 function sortPlayerHand(mode) {
   if (state.phase !== "combat" || state.isActionLocked) {
     return;
   }
 
-  const cardsWithIndex = state.playerCards.map((card, index) => ({ card, index }));
-  cardsWithIndex.sort((left, right) => {
-    const leftTemplate = CARD_LIBRARY[left.card.templateId];
-    const rightTemplate = CARD_LIBRARY[right.card.templateId];
-    let sortValues;
-
-    if (mode === "suit") {
-      sortValues = [
-        getSuitSortIndex(leftTemplate.suitId) - getSuitSortIndex(rightTemplate.suitId),
-        getRankSortIndex(leftTemplate.rankId) - getRankSortIndex(rightTemplate.rankId),
-        getTypeSortIndex(leftTemplate.typeId) - getTypeSortIndex(rightTemplate.typeId),
-        left.card.tier - right.card.tier
-      ];
-    } else if (mode === "type") {
-      sortValues = [
-        getTypeSortIndex(leftTemplate.typeId) - getTypeSortIndex(rightTemplate.typeId),
-        getSuitSortIndex(leftTemplate.suitId) - getSuitSortIndex(rightTemplate.suitId),
-        getRankSortIndex(leftTemplate.rankId) - getRankSortIndex(rightTemplate.rankId),
-        left.card.tier - right.card.tier
-      ];
-    } else if (mode === "tier") {
-      sortValues = [
-        left.card.tier - right.card.tier,
-        getTypeSortIndex(leftTemplate.typeId) - getTypeSortIndex(rightTemplate.typeId),
-        getSuitSortIndex(leftTemplate.suitId) - getSuitSortIndex(rightTemplate.suitId),
-        getRankSortIndex(leftTemplate.rankId) - getRankSortIndex(rightTemplate.rankId)
-      ];
-    } else {
-      sortValues = [
-        getRankSortIndex(leftTemplate.rankId) - getRankSortIndex(rightTemplate.rankId),
-        getSuitSortIndex(leftTemplate.suitId) - getSuitSortIndex(rightTemplate.suitId),
-        getTypeSortIndex(leftTemplate.typeId) - getTypeSortIndex(rightTemplate.typeId),
-        left.card.tier - right.card.tier
-      ];
-    }
-
-    return sortValues.find((value) => value !== 0) || left.index - right.index;
-  });
-
-  state.playerCards = cardsWithIndex.map(({ card }) => card);
+  const previousRects = getPlayerCardRects();
+  state.playerCards = getCardsSortedByMode(state.playerCards, mode);
   state.hoveredTemplateId = state.playerCards[0]?.templateId || null;
   state.hoveredTier = state.playerCards[0]?.tier || CARD_TIER_MIN;
   render();
+  animatePlayerCardSort(previousRects);
 }
 
 function createDealerCard() {
@@ -1296,6 +1622,8 @@ function startRound() {
   state.shopOffers = [];
   state.shopItemOffer = null;
   state.boosterChoice = null;
+  state.isDeckOpen = false;
+  state.isCombosOpen = false;
   state.activeTrashItemSlotIndex = null;
   state.trashSelectedDeckEntryIds = [];
   state.enteringCardIds = [];
@@ -1330,6 +1658,8 @@ function resetGame() {
   state.shopItemOffer = null;
   state.inventoryItems = [];
   state.boosterChoice = null;
+  state.isDeckOpen = false;
+  state.isCombosOpen = false;
   state.activeTrashItemSlotIndex = null;
   state.trashSelectedDeckEntryIds = [];
   state.round = 0;
@@ -1366,6 +1696,9 @@ function playSelectedCards() {
 
   const damage = getHandPower(selectedCards);
   const comboBonus = getPlayedCardComboBonus(selectedCards);
+  const themeEffect = getPlayedThemeEffect(selectedCards);
+  const totalDamage = damage + (themeEffect?.damageBonus || 0);
+  const damageTickCount = selectedCards.length + ((themeEffect?.damageBonus || 0) > 0 ? 1 : 0);
   const selectedCardIds = selectedCards.map((card) => card.instanceId);
   const actionToken = state.actionToken + 1;
   state.actionToken = actionToken;
@@ -1373,7 +1706,7 @@ function playSelectedCards() {
   state.animatingCardIds = selectedCardIds;
   state.cardAnimationType = "play";
   playCardDealSound();
-  startDamageCountAnimation(selectedCards, actionToken);
+  startDamageCountAnimation(selectedCards, actionToken, themeEffect?.damageBonus || 0);
 
   window.setTimeout(() => {
     if (state.actionToken !== actionToken) {
@@ -1381,7 +1714,7 @@ function playSelectedCards() {
     }
 
     state.playerCards = state.playerCards.filter((card) => !selectedCardIds.includes(card.instanceId));
-    state.discardPile.push(...selectedCards);
+    state.discardPile.push(...selectedCards.map((card) => ({ ...card, discardReason: "Gespielt" })));
     state.selectedCardIds = [];
     state.animatingCardIds = [];
     state.cardAnimationType = null;
@@ -1391,12 +1724,16 @@ function playSelectedCards() {
     if (comboBonus.coins > 0) {
       state.coins += comboBonus.coins;
     }
-    damageDealer(damage, comboBonus);
-  }, getDamageCountAnimationMs(selectedCards.length));
+    const appliedThemeEffect = applyThemeEffect(themeEffect);
+    damageDealer(totalDamage, comboBonus, appliedThemeEffect);
+  }, getDamageCountAnimationMs(damageTickCount));
 }
 
-function startDamageCountAnimation(cards, actionToken) {
+function startDamageCountAnimation(cards, actionToken, bonusDamage = 0) {
   const values = cards.map((card) => CARD_LIBRARY[card.templateId].value);
+  if (bonusDamage > 0) {
+    values.push(bonusDamage);
+  }
 
   state.damageAnimation = {
     values,
@@ -1472,7 +1809,7 @@ function discardSelectedCards() {
     }
 
     state.playerCards = state.playerCards.filter((card) => !selectedCardIds.includes(card.instanceId));
-    state.discardPile.push(...selectedCards);
+    state.discardPile.push(...selectedCards.map((card) => ({ ...card, discardReason: "Abgeworfen" })));
     state.selectedCardIds = [];
 
     const maxDrawCount = Math.min(MAX_DISCARD_DRAW_COUNT, MAX_HAND_SIZE - state.playerCards.length);
@@ -1508,24 +1845,37 @@ function discardSelectedCards() {
   }, CARD_EXIT_ANIMATION_MS);
 }
 
-function damageDealer(amount, comboBonus = null) {
+function damageDealer(amount, comboBonus = null, themeEffect = null) {
   const comboMessage = getComboBonusMessage(comboBonus);
+  let effectMessage = `${comboMessage}${getThemeEffectMessage(themeEffect)}`;
   state.dealer.hp = Math.max(0, state.dealer.hp - amount);
 
   if (state.dealer.hp <= 0) {
     state.phase = "victoryCardEffect";
-    state.message = `Dealer besiegt! +${state.rewardCoins} Münzen.${comboMessage}`;
+    state.message = `Dealer besiegt! +${state.rewardCoins} Münzen.${effectMessage}`;
     state.dealerCards.forEach((card) => {
       card.hidden = false;
     });
     animateCardsBeforeResult("dealer-defeat", state.dealerCards, () => {
-      winCombat(`Dealer besiegt! +${state.rewardCoins} Münzen.${comboMessage}`);
+      winCombat(`Dealer besiegt! +${state.rewardCoins} Münzen.${effectMessage}`);
     });
     return;
   }
 
-  const dealerDamage = getHandPower(state.dealerCards);
-  damagePlayer(dealerDamage, comboBonus);
+  if (state.player.hp <= 0) {
+    state.phase = "defeatCardEffect";
+    state.message = `${amount} Schaden verursacht, aber der Effekt hat dich besiegt.${effectMessage}`;
+    state.selectedCardIds = [];
+    animateCardsBeforeResult("player-defeat", state.playerCards, () => {
+      startResultEffect("defeat");
+      render();
+    });
+    return;
+  }
+
+  const dealerBaseDamage = getHandPower(state.dealerCards);
+  const dealerDamage = Math.max(0, dealerBaseDamage - (themeEffect?.dealerDamageReduction || 0));
+  damagePlayer(dealerDamage, comboBonus, themeEffect);
 
   if (state.phase !== "combat") {
     return;
@@ -1533,32 +1883,37 @@ function damageDealer(amount, comboBonus = null) {
 
   drawDealerHand();
   drawPlayerHand();
+  if (themeEffect?.drawCards > 0) {
+    themeEffect.drawnCards = drawExtraThemeCards(themeEffect.drawCards);
+    effectMessage = `${comboMessage}${getThemeEffectMessage(themeEffect)}`;
+  }
   clearEnteringCardsSoon();
   state.hoveredTemplateId = state.playerCards[0]?.templateId || null;
   if (state.playerCards.length === 0) {
-    state.message = `${amount} Schaden verursacht, aber du hast keine Karten mehr. Kampf verloren.${comboMessage}`;
+    state.message = `${amount} Schaden verursacht, aber du hast keine Karten mehr. Kampf verloren.${effectMessage}`;
     startResultEffect("defeat");
     render();
     return;
   }
 
   if (state.playsThisRound >= state.maxPlaysPerRound) {
-    loseCombat(`${amount} Schaden verursacht, aber du hast alle Spielzüge verbraucht. Kampf verloren.${comboMessage}`);
+    loseCombat(`${amount} Schaden verursacht, aber du hast alle Spielzüge verbraucht. Kampf verloren.${effectMessage}`);
     render();
     return;
   }
 
-  state.message = `${amount} Schaden verursacht. Dealer kontert mit ${dealerDamage} Schaden. Spielen ${state.playsThisRound}/${state.maxPlaysPerRound}, Abwerfen ${state.discardsThisRound}/${state.maxDiscardsPerRound}.${comboMessage}`;
+  state.message = `${amount} Schaden verursacht. Dealer kontert mit ${dealerDamage} Schaden. Spielen ${state.playsThisRound}/${state.maxPlaysPerRound}, Abwerfen ${state.discardsThisRound}/${state.maxDiscardsPerRound}.${effectMessage}`;
   render();
 }
 
-function damagePlayer(amount, comboBonus = null) {
+function damagePlayer(amount, comboBonus = null, themeEffect = null) {
   const comboMessage = getComboBonusMessage(comboBonus);
+  const themeMessage = getThemeEffectMessage(themeEffect);
   state.player.hp = Math.max(0, state.player.hp - amount);
 
   if (state.player.hp <= 0) {
     state.phase = "defeatCardEffect";
-    state.message = `Du wurdest besiegt. Dealer hat ${amount} Schaden gemacht.${comboMessage}`;
+    state.message = `Du wurdest besiegt. Dealer hat ${amount} Schaden gemacht.${comboMessage}${themeMessage}`;
     state.selectedCardIds = [];
     animateCardsBeforeResult("player-defeat", state.playerCards, () => {
       startResultEffect("defeat");
@@ -1807,8 +2162,39 @@ function addDebugCoins() {
   render();
 }
 
+function getDeckCardZone(deckEntryId) {
+  const matchingPlayerCard = state.playerCards.find((card) => card.deckEntryId === deckEntryId);
+  if (matchingPlayerCard) {
+    if (state.animatingCardIds.includes(matchingPlayerCard.instanceId)) {
+      return state.cardAnimationType === "discard" ? "Abgeworfen" : "Gespielt";
+    }
+    return "Hand";
+  }
+
+  const matchingDiscardCard = state.discardPile.find((card) => card.deckEntryId === deckEntryId);
+  if (matchingDiscardCard) {
+    return matchingDiscardCard.discardReason || "Gespielt/Abgeworfen";
+  }
+
+  if (state.drawPile.some((card) => card.deckEntryId === deckEntryId)) {
+    return "Deck";
+  }
+
+  return "Nicht im Stapel";
+}
+
 function getCurrentDeckCards() {
-  return state.drawPile.map((card) => ({ ...card, zone: "Deck" }));
+  return state.runDeck.map((card) => ({
+    ...card,
+    zone: getDeckCardZone(card.deckEntryId)
+  }));
+}
+
+function sortDeckPanel(mode) {
+  const previousRects = getDeckItemRects();
+  state.deckSortMode = mode;
+  renderDeckPanel();
+  animateDeckPanelSort(previousRects);
 }
 
 function openDeckPanel() {
@@ -1817,17 +2203,34 @@ function openDeckPanel() {
     return;
   }
 
+  closeOverlayWindows();
   state.isDeckOpen = true;
-  const firstCard = getCurrentDeckCards()[0];
+  const firstCard = getCardsSortedByMode(getCurrentDeckCards(), state.deckSortMode)[0];
   state.hoveredTemplateId = firstCard?.templateId || null;
   state.hoveredTier = firstCard?.tier || CARD_TIER_MIN;
   renderPreview();
-  renderDeckPanel();
+  render();
 }
 
 function closeDeckPanel() {
   state.isDeckOpen = false;
   renderDeckPanel();
+}
+
+function openCombosPanel() {
+  if (state.isCombosOpen) {
+    closeCombosPanel();
+    return;
+  }
+
+  closeOverlayWindows();
+  state.isCombosOpen = true;
+  render();
+}
+
+function closeCombosPanel() {
+  state.isCombosOpen = false;
+  renderCombosPanel();
 }
 
 function openTrashItem(slotIndex) {
@@ -1842,9 +2245,9 @@ function openTrashItem(slotIndex) {
     return;
   }
 
+  closeOverlayWindows();
   state.activeTrashItemSlotIndex = slotIndex;
   state.trashSelectedDeckEntryIds = [];
-  state.isDeckOpen = false;
   state.hoveredTemplateId = state.runDeck[0]?.templateId || null;
   state.hoveredTier = state.runDeck[0]?.tier || CARD_TIER_MIN;
   render();
@@ -1944,6 +2347,9 @@ function createCardElement(template, options = {}) {
   const article = document.createElement("article");
   article.className = "playing-card";
   const tier = clampCardTier(options.tier);
+  if (options.card?.instanceId) {
+    article.dataset.cardId = options.card.instanceId;
+  }
 
   if (options.hidden) {
     article.classList.add("card-hidden");
@@ -2062,22 +2468,24 @@ function renderPreview() {
 }
 
 function renderDeckPanel() {
-  const cards = getCurrentDeckCards();
+  const cards = getCardsSortedByMode(getCurrentDeckCards(), state.deckSortMode);
 
   els.deckPanel.classList.toggle("is-hidden", !state.isDeckOpen);
-  els.deckSummary.textContent = `${state.drawPile.length} Deck · ${state.playerCards.length} Hand · ${state.discardPile.length} Abgelegt`;
+  els.deckSummary.textContent = `${state.runDeck.length} Gesamt · ${state.drawPile.length} Deck · ${state.playerCards.length} Hand · ${state.discardPile.length} Gespielt/Abgeworfen`;
   els.deckList.innerHTML = "";
 
   cards.forEach((card) => {
     const template = CARD_LIBRARY[card.templateId];
     const item = document.createElement("article");
-    item.className = "deck-list-item";
+    item.className = `deck-list-item${card.zone !== "Deck" ? " is-muted" : ""}`;
+    item.dataset.deckEntryId = card.deckEntryId;
     item.setAttribute("role", "button");
     item.setAttribute("tabindex", "0");
     item.innerHTML = `
       <div class="deck-list-card"></div>
       <div class="deck-list-meta">
         <strong>${getCardDisplayName(template, card.tier)}</strong>
+        <em>${card.zone}</em>
         <span>
           <b>${template.typeLabel}</b>
           ${card.tier > CARD_TIER_MIN ? `<b>STUFE ${card.tier}</b>` : ""}
@@ -2096,6 +2504,105 @@ function renderDeckPanel() {
     item.addEventListener("click", updateMainPreview);
     els.deckList.appendChild(item);
   });
+}
+
+function getComboRuleDefinitions() {
+  return [
+    {
+      group: "Rang",
+      title: "Paar",
+      condition: "2x gleicher Rang",
+      reward: `+${COMBO_PAIR_BONUS_COINS}`,
+      rewardLabel: "Coins",
+      example: "5 + 5"
+    },
+    {
+      group: "Rang",
+      title: "Drilling",
+      condition: "3x gleicher Rang",
+      reward: `+${COMBO_TRIPLE_BONUS_COINS}`,
+      rewardLabel: "Coins",
+      example: "K + K + K"
+    },
+    {
+      group: "Farbe",
+      title: "Flush",
+      condition: "3x gleiche Farbe",
+      reward: `+${COMBO_FLUSH_BONUS_COINS}`,
+      rewardLabel: "Coins",
+      example: "3x Herz"
+    },
+    {
+      group: "Typ",
+      title: "Thema",
+      condition: "3x gleicher Spezialtyp",
+      reward: `+${COMBO_THEME_TRIPLE_BONUS_COINS}`,
+      rewardLabel: "Coins + Effekt",
+      example: `Stufenbonus: Summe aller Stufen über ${CARD_TIER_MIN}`
+    }
+  ];
+}
+
+function createComboStatMarkup(stats) {
+  return stats
+    .map((stat) => `
+      <span class="combo-stat">
+        <b>${stat.label}</b>
+        <strong>${stat.value}</strong>
+        <em>${stat.scaling}</em>
+      </span>
+    `)
+    .join("");
+}
+
+function renderComboRulesList() {
+  const comboRulesList = els.combosPanel.querySelector(".combos-grid");
+  comboRulesList.innerHTML = getComboRuleDefinitions()
+    .map((rule) => `
+      <article class="combo-info-card ${rule.title === "Thema" ? "combo-theme" : "combo-standard"}">
+        <div class="combo-info-head">
+          <span>${rule.group}</span>
+          <strong>${rule.title}</strong>
+        </div>
+        <div class="combo-value-row">
+          <span>${rule.condition}</span>
+          <b>${rule.reward} ${rule.rewardLabel}</b>
+        </div>
+        <em>${rule.example}</em>
+      </article>
+    `)
+    .join("");
+}
+
+function renderThemeCombosList() {
+  const themeCombosList = els.combosPanel.querySelector(".theme-combo-list");
+  themeCombosList.innerHTML = SPECIAL_CARD_TYPE_SEQUENCE
+    .filter((typeId) => THEME_EFFECT_CONFIG[typeId])
+    .map((typeId) => {
+      const config = THEME_EFFECT_CONFIG[typeId];
+      const type = CARD_TYPES[typeId];
+      return `
+        <article class="theme-combo-card card-${typeId}">
+          <div class="theme-combo-head">
+            <span>${type.label}</span>
+            <b>3x ${type.label}</b>
+          </div>
+          <p>${config.summary}</p>
+          <div class="combo-stat-grid">${createComboStatMarkup(config.stats)}</div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function renderCombosPanel() {
+  els.combosPanel.classList.toggle("is-hidden", !state.isCombosOpen);
+  if (!state.isCombosOpen) {
+    return;
+  }
+
+  renderComboRulesList();
+  renderThemeCombosList();
 }
 
 function renderShopOffers() {
@@ -2300,7 +2807,7 @@ function renderComboSelectionOverlay(comboBonus) {
   }
 
   const bonusMarkup = comboBonus.bonuses
-    .map((bonus) => `<span>${bonus.label}</span>`)
+    .map((bonus, index) => `${index > 0 ? '<b aria-hidden="true">+</b>' : ""}<span>${bonus.label}</span>`)
     .join("");
 
   els.comboSelectionOverlay.classList.add("is-active");
@@ -2397,6 +2904,11 @@ function render() {
   els.sortHandSuitButton.disabled = isHandSortDisabled;
   els.sortHandTypeButton.disabled = isHandSortDisabled;
   els.sortHandTierButton.disabled = isHandSortDisabled;
+  const isDeckSortDisabled = state.runDeck.length < 2;
+  els.sortDeckRankButton.disabled = isDeckSortDisabled;
+  els.sortDeckSuitButton.disabled = isDeckSortDisabled;
+  els.sortDeckTypeButton.disabled = isDeckSortDisabled;
+  els.sortDeckTierButton.disabled = isDeckSortDisabled;
   els.shopRerollButton.disabled = state.phase !== "shop" || Boolean(state.boosterChoice) || state.coins < SHOP_REROLL_COST;
   els.shopNextFightButton.disabled = state.phase === "shop" && Boolean(state.boosterChoice);
   els.nextFightButton.classList.add("is-hidden");
@@ -2423,6 +2935,7 @@ function render() {
   renderComboSelectionOverlay(selectedComboBonus);
   renderPreview();
   renderDeckPanel();
+  renderCombosPanel();
   renderTrashItemPanel();
 }
 
@@ -2432,6 +2945,10 @@ els.sortHandRankButton.addEventListener("click", () => sortPlayerHand("rank"));
 els.sortHandSuitButton.addEventListener("click", () => sortPlayerHand("suit"));
 els.sortHandTypeButton.addEventListener("click", () => sortPlayerHand("type"));
 els.sortHandTierButton.addEventListener("click", () => sortPlayerHand("tier"));
+els.sortDeckRankButton.addEventListener("click", () => sortDeckPanel("rank"));
+els.sortDeckSuitButton.addEventListener("click", () => sortDeckPanel("suit"));
+els.sortDeckTypeButton.addEventListener("click", () => sortDeckPanel("type"));
+els.sortDeckTierButton.addEventListener("click", () => sortDeckPanel("tier"));
 els.debugWinButton.addEventListener("click", () => winCombat());
 els.debugCoinsButton.addEventListener("click", addDebugCoins);
 els.nextFightButton.addEventListener("click", startRound);
@@ -2442,9 +2959,12 @@ els.skipBoosterChoiceButton.addEventListener("click", skipBoosterChoice);
 els.restartRunButton.addEventListener("click", resetGame);
 els.defeatMainMenuButton.addEventListener("click", returnToMainMenu);
 els.ingameMainMenuButton.addEventListener("click", returnToMainMenu);
+els.ingameSettingsButton.addEventListener("click", openSettingsMenu);
 els.resetButton.addEventListener("click", resetGame);
 els.deckButton.addEventListener("click", openDeckPanel);
 els.closeDeckButton.addEventListener("click", closeDeckPanel);
+els.combosButton.addEventListener("click", openCombosPanel);
+els.closeCombosButton.addEventListener("click", closeCombosPanel);
 els.confirmTrashItemButton.addEventListener("click", confirmTrashItemUse);
 els.cancelTrashItemButton.addEventListener("click", closeTrashItemPanel);
 els.startGameButton.addEventListener("click", startGameFromMenu);
